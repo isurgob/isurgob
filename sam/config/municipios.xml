@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<municipios>
+	<muni>
+		<cod>1</cod>
+		<nombre>Muni1</nombre>
+		<dsn>pgsql:host=localhost;dbname=sam</dsn>
+		<username>usr</username>
+		<password>clave</password>
+		<charset>utf8</charset>
+	</muni>
+</municipios>
