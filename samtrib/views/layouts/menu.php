@@ -70,7 +70,6 @@ $menu = Collapse::widget([
 				            'content' =>
 				            		'<a class="list-group-item" href="'.$base.'/ctacte/liquida/view">Eventuales</a></li>'.
 				            		'<a class="list-group-item" href="'.$base.'/ctacte/ddjj/index">DDJJ</a></li>'.
-				            		'<a class="list-group-item" href="'.$base.'/ctacte/mejoraplan/index">Contrib. Mejoras</a></li>'.
 									'<a class="list-group-item" href="'.$base.'/ctacte/listadotribacc/index">Asignaciones</a></li>'.
 									'<a class="list-group-item" href="'.$base.'/ctacte/listadotribacc/index&tipo=excepcion">Excepciones</a></li>'.
 									'<a class="list-group-item" href="'.$base.'/ctacte/listadotribacc/index&tipo=inscripcion">Inscrip.Tributos</a></li>'.
@@ -92,7 +91,6 @@ $menu = Collapse::widget([
 				            		'<a class="list-group-item" href="'.$base.'/ctacte/cestado/view">Cambio Estado</a></li>'.
 				            		'<a class="list-group-item" href="'.$base.'/ctacte/saldoneg/view">Saldo Negativo</a></li>'.
 									'<a class="list-group-item" href="'.$base.'/ctacte/comp/view">Compensa</a></li>'.
-				            		'<a class="list-group-item" href="'.$base.'/ctacte/intima/view">Incumplimiento</a></li>'.
 				            		'<a class="list-group-item" href="'.$base.'/ctacte/judi/view">Apremio</a></li>'.
 				            		'<a class="list-group-item" href="'.$base.'/ctacte/fiscaliza/view">Fiscalización</a></li>',
 				            'contentOptions' => ['class' => 'submenu']

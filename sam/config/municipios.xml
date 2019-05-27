@@ -2,10 +2,10 @@
 <municipios>
 	<muni>
 		<cod>1</cod>
-		<nombre>Muni1</nombre>
-		<dsn>pgsql:host=localhost;dbname=sam</dsn>
-		<username>usr</username>
-		<password>clave</password>
+		<nombre>Municipio</nombre>
+		<dsn>pgsql:host=localhost;dbname=isurgob</dsn>
+		<username>webusr</username>
+		<password>test</password>
 		<charset>utf8</charset>
 	</muni>
 </municipios>

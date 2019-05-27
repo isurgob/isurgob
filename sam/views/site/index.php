@@ -16,7 +16,7 @@ $this->title=Yii::$app->name;
 	<div>
         <h1><i><?php echo Yii::$app->param->sis_name == '' ? Yii::$app->param->name : Yii::$app->param->sis_name; ?></i></h1>
     
-        <p>Desarrollado por <a href="http://www.aari.com.ar/" target="_blank">AARI</a></p>
+        <p>Desarrollado por <a href="http://www.isurgob.com/" target="_blank">ISUR</a></p>
     
         <p>&nbsp;</p>
         <p style="font-size:11px">Para obtener informaci&oacute;n sobre el uso <br /> del Sistema, consulte la documentaci&oacute;n y la <br />
