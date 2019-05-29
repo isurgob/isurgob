@@ -4,7 +4,6 @@ language: php
 # optionally set up exclusions and allowed failures in the matrix
 matrix:
   include:
-  # Definicion de pruebas sobre multiples versiones de lenguaje y motor
   - php: 7.0
       dist: trusty
       env:
@@ -13,22 +12,6 @@ matrix:
       services:
       - postgresql
       
-    - php: 7.1
-      dist: trusty
-      env:
-      - DB=pgsql
-      sudo: required
-      services:
-      - postgresql
-
-    - php: 7.2
-      dist: trusty
-      env:
-      - DB=pgsql
-      sudo: required
-      services:
-      - postgresql
-
   exclude:
     - php: hhvm
       env: DB=pgsql  # PDO driver for pgsql
@@ -41,12 +24,12 @@ before_install:
 addons:
     apt:
         packages:
-        - php-simplexml
-		- php-mbstring
-        - php-mcrypt
-        - php-gd
-        - php-zip
-        - pdo-pgsql
+        - php7.0-xml
+        - php7.0-mbstring
+        - php7.0-mcrypt
+        - php7.0-gd
+        - php7.0-zip
+        - pdo7.0-pgsql
 install:
   - wget https://github.com/isurgob/isurgob/archive/master.zip
   - unzip master.zip
