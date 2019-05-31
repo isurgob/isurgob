@@ -4,7 +4,7 @@ language: php
 matrix:
   include:
   - php: 7.0
-    dist: trusty
+    dist: xenial
     env:
       - DB=pgsql
     sudo: required
