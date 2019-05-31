@@ -28,7 +28,7 @@ addons:
         - php7.0-mcrypt
         - php7.0-gd
         - php7.0-zip
-        - pdo7.0-pgsql
+        - php7.0-pgsql
 install:
   - wget https://github.com/isurgob/isurgob/archive/master.zip
   - unzip master.zip
