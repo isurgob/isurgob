@@ -30,13 +30,12 @@ addons:
         - php7.0-zip
         - php7.0-pgsql
 install:
-  - cd /var/www/html
   - wget https://github.com/isurgob/isurgob/archive/master.zip
   - unzip master.zip
   
 # execute any number of scripts before the test run, custom env's are available as variables
 before_script:
-  - cd bd
+  - cd db
   - psql -h localhost -U postgres -f "a-pgbackup_sam_logico-2019-05.sql";
   - psql -h localhost -U postgres -f "b-pgbackup_sam_dataaux-2019-05.sql";
 
