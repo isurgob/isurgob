@@ -1,15 +1,14 @@
-
 language: php
 
 # optionally set up exclusions and allowed failures in the matrix
 matrix:
   include:
   - php: 7.0
-      dist: trusty
-      env:
+    dist: trusty
+    env:
       - DB=pgsql
-      sudo: required
-      services:
+    sudo: required
+    services:
       - postgresql
       
   exclude:
