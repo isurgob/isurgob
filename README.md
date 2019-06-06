@@ -54,8 +54,8 @@ Para instalar las bases de datos es necesario cargar los scripts en las herramie
 -   Descomprimir el código del paso anterior en el directorio de publicación de Apache.
 
 4. Puesta en Marcha
-Una vez instalado, tipear en su navegador Web http://ip_dns/sam
-Primeros Pasos en la imagen: (https://github.com/isurgob/isurgob/tree/master/docs/InterfacesGIS.pdf)
+Una vez instalado, tipear en su navegador Web http://ip_dns/sam.
+Primeros Pasos en la imagen: 
 
 5. Configuración Inicial
 En forma previa a la utilización de los módulos del Sistema, es necesario precargar los datos auxiliares y de configuración en función de las normativas propias del organismo.
@@ -72,7 +72,7 @@ Asimismo, las tipologías y categorizaciones respecto de los Objetos Imponibles y
     a)	Alta, Baja y modificación unitaria de inmuebles:
     b)	Actualización de Valuaciones: Permitirá actualizar la información asociada a las valuaciones de inmuebles y mejoras, incluyendo todos los elementos necesarios, tales como: superficie, zona, coeficiente, valor básico, categoría, etc. Este método será invocado por el Sistema de Catastro, ante un proceso de revalúo, ya sea parcial o total.
     c)	Semáforo de deuda: Consistirá en un semáforo que indicará si se pueden realizar gestiones sobre un inmueble en el Sistema de Catastro, de acuerdo al estado de deuda del mismo, teniendo en cuenta los parámetros para determinar la misma. El Sistema Comarcal incluirá las llamadas a este “semáforo” cuando se inicien trámites que cambien el estado del inmueble (Planos de obra, declaraciones de mejoras, etc.)
-
+-   Funciones y Aspectos Técnicos: (https://github.com/isurgob/isurgob/tree/master/docs/InterfacesGIS.pdf)
    
 ### Arquitectura
 ---
