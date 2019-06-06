@@ -55,6 +55,7 @@ Para instalar las bases de datos es necesario cargar los scripts en las herramie
 
 4. Puesta en Marcha
 Una vez instalado, tipear en su navegador Web http://ip_dns/sam
+Primeros Pasos en la imagen: (https://github.com/isurgob/isurgob/tree/master/docs/InterfacesGIS.pdf)
 
 5. Configuración Inicial
 En forma previa a la utilización de los módulos del Sistema, es necesario precargar los datos auxiliares y de configuración en función de las normativas propias del organismo.
@@ -109,7 +110,7 @@ Se podrá migrar la información existente actualmente.
 
 ### Licencia 
 ---
-[LICENCIA](https://github.com/EL-BID/Plantilla-de-repositorio/blob/master/LICENSE.md)
+[LICENCIA](https://github.com/isurgob/isurgob/blob/master/LICENSE.md)
 
 
 ## Limitación de responsabilidades
