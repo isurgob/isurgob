@@ -29459,6 +29459,193 @@ COMMENT ON COLUMN sam.sis_usuario.fchmod IS 'FECHA DE MODIFICACION';
 
 COMMENT ON COLUMN sam.sis_usuario.usrmod IS 'CODIGO DE USUARIO QUE MODIFICO';
 
+--
+-- TOC entry 731 (class 1255 OID 5282690)
+-- Name: uf_caja_codbarra(integer, character varying, integer, integer, integer, numeric, date, numeric, date); Type: FUNCTION; Schema: sam; Owner: postgres
+--
+
+CREATE FUNCTION sam.uf_caja_codbarra(_trib_id integer, _obj_id character varying, _subcta integer, _anio integer, _cuota integer, _monto numeric, _fchvenc date, _monto2 numeric DEFAULT 0, _fchvenc2 date DEFAULT NULL::date) RETURNS character varying
+    LANGUAGE plpgsql
+    AS $$
+declare
+    codbarra varchar(44);
+    muni varchar(4);
+    auxobjanio varchar(9);
+    n smallint;
+    x smallint;
+    suma smallint;
+    verif smallint;
+    cb_monto numeric(12,2);
+    recargo numeric(12,2);
+    difdias smallint;
+begin
+    -- Función que genera el Código de barra a partir de los parámetros
+
+    select into muni m.cod_ent from sam.muni_datos m;
+
+    If (_cuota=0 and _fchvenc is null) Then
+      	codbarra= '';
+    ElsIf (_monto < 0) Then 
+	codbarra= '';
+    Else
+    	If _trib_id in (1,2,3,10) Then
+        	auxobjanio := iif(_subcta=0, lpad(cast(_anio as varchar(9)),9,'0'), _subcta || lpad(cast(_anio as varchar(8)),8,'0'));
+        Else
+        	auxobjanio := iif(_subcta=0, substr(_obj_id,2,7), _subcta || substr(_obj_id,3,6)) || substr(cast(_anio as varchar(4)),3,2);
+        End If;
+        If (_monto < 0) Then
+        	cb_monto := 0;
+        Else
+        	cb_monto = _monto;
+        End If;
+
+        If (_monto2 = 0 or _monto2 = cb_monto) Then
+            difdias := 0;
+            recargo := 0;
+        Else
+            difdias = _fchvenc2 - _fchvenc;
+            if (difdias > 0) Then
+              recargo := _monto2 - cb_monto;
+            else
+              difdias := 0;
+              recargo := 0;
+            end if;  
+        End If;
+
+        codbarra = muni
+        	|| lpad(cast(trunc(cb_monto) as varchar(6)),6,'0')
+        	|| lpad(cast(trunc((cb_monto - trunc(cb_monto))*100) as varchar(2)),2,'0')
+        	|| to_char(_fchvenc,'YYddd')
+            || lpad(cast(_trib_id as varchar(2)),2,'0')
+        	|| auxobjanio
+	        || lpad(cast(_cuota as varchar(3)),3,'0')
+            || '0'       -- moneda
+        	|| lpad(cast(trunc(recargo) as varchar(4)),4,'0')		-- recargo parte entera
+        	|| lpad(cast(trunc((recargo - trunc(recargo))*100) as varchar(2)),2,'0'); -- recargo parte decimal
+
+            codbarra = codbarra || lpad(cast(difdias as varchar(2)),2,'0');      -- días al 2° venc.
+
+        -- Genero los dígitos de paridad
+        x := 1;
+        suma := 0;
+        For i IN 1..40 Loop
+        	n := cast(substr(codbarra,i,1) as smallint);
+            suma := suma + n * x;
+            If x=9 Then
+            	x := 3;
+            Else
+            	x := x + 2;
+            End If;
+        End Loop;
+
+        verif := trunc(suma/2)::integer % 10;
+        codbarra := codbarra || verif::text;
+        suma := suma + verif * x;
+        verif := trunc(suma/2)::integer % 10;
+        codbarra := codbarra || verif::text;
+
+	End If;
+
+    Return codbarra;
+
+end
+$$;
+
+
+ALTER FUNCTION sam.uf_caja_codbarra(_trib_id integer, _obj_id character varying, _subcta integer, _anio integer, _cuota integer, _monto numeric, _fchvenc date, _monto2 numeric, _fchvenc2 date) OWNER TO postgres;
+
+--
+-- TOC entry 732 (class 1255 OID 5282691)
+-- Name: uf_caja_codbarra_det(character varying); Type: FUNCTION; Schema: sam; Owner: postgres
+--
+
+CREATE FUNCTION sam.uf_caja_codbarra_det(_codbarra character varying) RETURNS TABLE(trib_id smallint, obj_id character varying, subcta smallint, anio integer, cuota smallint, monto numeric, fchvenc date)
+    LANGUAGE plpgsql
+    AS $$
+declare
+    ttrib smallint;
+    vletra varchar(1);
+    pos smallint;
+    vctacte_id integer;
+    vtrib_id smallint;
+    vanio integer;
+begin
+  -- Función que obtiene los componentes del código de barra
+
+  -- Inicializo los datos
+  trib_id=0;  obj_id='';  subcta=0;  anio=0;  cuota=0; monto=0;  fchvenc=null;
+
+  If (length(_codbarra)=42) Then
+    trib_id := cast(substr(_CodBarra,18,2) as smallint);
+    subcta := cast(substr(_CodBarra,20,1) as smallint);
+    cuota := cast(substr(_codbarra,29,3) as smallint);
+    monto := cast(substr(_codbarra,5,8) as decimal(15,2))/100;
+    fchvenc := to_date(substr(_codbarra,13,5),'YYddd');
+
+    If (trib_id in (1,2,3,10)) Then
+    	If subcta=0 Then
+        	anio := cast(substr(_codbarra,20,9) as integer);
+		Else
+        	anio := cast(substr(_codbarra,21,8) as integer);
+        End If; 
+    	vanio= anio;
+        -- Obtengo el objeto del plan o facilidad
+        If (trib_id=1) Then
+        	Select Into Obj_id p.obj_id from plan p where plan_id=vanio;
+        elseif (trib_id=2) Then
+	        Select Into Obj_id f.obj_id from facilida f where faci_id=vanio;
+        else
+            Select Into Obj_id p.obj_id from ctacte_pagocta p where pago_id=vanio;
+        End If;
+    Else
+	    anio := 2000 + cast(substr(_codbarra,27,2) as integer);
+
+        vtrib_id = trib_id;
+        select into vletra  o.letra
+        from trib t left join objeto_tipo o on t.tobj = o.Cod
+        where t.trib_id = vtrib_id ;
+
+        If (vletra is null) Then
+        	If (Trib_id <> 12) Then
+            	raise exception 'Tributo u objeto no definido adecuadamente';
+            Else
+            	vletra :='_';
+            End If;
+        End If;
+		
+        If subcta=0 Then	-- Si subcuenta es distinta de cero, tomo el objeto de 6 caracteres
+	    	obj_id := vletra || substr(_CodBarra,20,7);
+        Else
+        	obj_id := vletra || '0' || substr(_CodBarra,21,6);
+        End If;
+	End If;
+
+  ElseIf upper(substr(_codbarra,1,1))='C' Then -- Código Especial para Higiene
+	    pos := position('-' in _codbarra);
+        trib_id := 22;
+        obj_id := 'C' || lpad(substr(_codbarra,2,pos-2),7,'0');
+        subcta := 0;
+        anio := cast(substr(_codbarra,pos+1,4) as integer);
+        cuota := cast(substr(_codbarra,pos+5,2) as integer);
+
+  ElseIf (length(_codbarra)>10) Then  --error, supera el dato integer para ser ctacte_id
+		Raise Exception 'Datos inexistentes';
+  Else
+        -- si el codbarra es de menor longitud significa que se trata de ctacte_id
+        vctacte_id := cast(_codbarra as integer);
+
+        Select Into trib_id, obj_id, subcta, anio, cuota, monto, fchvenc
+        c.trib_id, c.obj_id, c.subcta, c.anio, c.cuota, c.nominal, c.fchvenc
+        From ctacte c Where c.ctacte_id = vctacte_id;
+  End If;
+
+  Return Next;
+end
+$$;
+
+
+ALTER FUNCTION sam.uf_caja_codbarra_det(_codbarra character varying) OWNER TO postgres;
+
 
 --
 -- TOC entry 520 (class 1259 OID 5285737)
@@ -29487,6 +29674,277 @@ CREATE VIEW public.v_banco_cuenta AS
      LEFT JOIN public.banco_entidad e ON ((("substring"((c.cbu)::text, 1, 3))::smallint = e.bco_ent)))
      LEFT JOIN sam.sis_usuario u ON ((c.usrmod = u.usr_id)));
 
+	 
+--
+-- TOC entry 859 (class 1255 OID 5282868)
+-- Name: uf_inm_armar_nc_guiones(character varying); Type: FUNCTION; Schema: sam; Owner: postgres
+--
+
+CREATE FUNCTION sam.uf_inm_armar_nc_guiones(_obj_id character varying) RETURNS character varying
+    LANGUAGE plpgsql
+    AS $$
+declare
+    vs1 varchar;
+    vs2 varchar;
+    vs3 varchar;
+    vmanz varchar;
+    vparc varchar;
+	nc varchar(25);
+	vnombre varchar(8);
+	vlargo smallint:=0;
+	l_s1 smallint:= 0;
+    l_s2 smallint:= 0;
+    l_s3 smallint:= 0;
+    l_manz smallint:= 0;
+    l_parc smallint:= 0;
+    sep varchar(1);
+BEGIN
+	-- Recupero el largo de cada campo de la configuracion de nc
+    -- No se utilizar caracter de relleno, se separan los valores que intervienen con guiones
+    sep = '-';
+    
+	For vnombre,vlargo In Select campo,max_largo
+      From sam.config_inm_nc Where aplica=true Loop
+		If vnombre='s1' Then l_s1:=vlargo; End If;
+		If vnombre='s2' Then l_s2:=vlargo; End If;
+		If vnombre='s3' Then l_s3:=vlargo; End If;
+		If vnombre='manz' Then l_manz:=vlargo; End If;
+		If vnombre='parc' Then l_parc:=vlargo; End If;
+	End Loop;
+    Select Into vs1, vs2, vs3, vmanz, vparc
+      i.s1, i.s2, i.s3, i.manz, i.parc
+	  from inm i where i.obj_id = _obj_id;
+
+    nc:= case when l_s1>0 then trim(vs1)||sep else '' end
+      || case when l_s2>0 then trim(vs2)||sep else '' end
+      || case when l_s3>0 then trim(vs3)||sep else '' end
+      || case when l_manz>0 then trim(vmanz)||sep else '' end
+      || case when l_parc>0 then trim(vparc) else '' end;
+
+    if nc is null then nc= ''; end if;
+	return nc;
+END;
+$$;
+
+
+ALTER FUNCTION sam.uf_inm_armar_nc_guiones(_obj_id character varying) OWNER TO postgres;
+
+--
+-- TOC entry 860 (class 1255 OID 5282869)
+-- Name: uf_inm_armar_nc_guiones(character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: sam; Owner: postgres
+--
+
+CREATE FUNCTION sam.uf_inm_armar_nc_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying, _parc character varying) RETURNS character varying
+    LANGUAGE plpgsql
+    AS $$
+declare
+	nc varchar(25);
+	vnombre varchar(8);
+	vlargo smallint:=0;
+	l_s1 smallint:= 0;
+        l_s2 smallint:= 0;
+        l_s3 smallint:= 0;
+        l_manz smallint:= 0;
+        l_parc smallint:= 0;
+        sep varchar(1);
+BEGIN
+	-- Recupero el largo de cada campo de la configuracion de nc
+    -- No se utilizar caracter de relleno, se separan los valores que intervienen con guiones y otro separador
+    sep = '-';
+    
+	For vnombre,vlargo In Select campo,max_largo
+      From sam.config_inm_nc Where aplica=true Loop
+		If vnombre='s1' Then l_s1:=vlargo; End If;
+		If vnombre='s2' Then l_s2:=vlargo; End If;
+		If vnombre='s3' Then l_s3:=vlargo; End If;
+		If vnombre='manz' Then l_manz:=vlargo; End If;
+		If vnombre='parc' Then l_parc:=vlargo; End If;
+	End Loop;
+
+    nc:= case when l_s1>0 then trim(_s1)||sep else '' end
+      || case when l_s2>0 then trim(_s2)||sep else '' end
+      || case when l_s3>0 then trim(_s3)||sep else '' end
+      || case when l_manz>0 then trim(_manz)||sep else '' end
+      || case when l_parc>0 then trim(_parc) else '' end;
+
+	return nc;
+END;
+$$;
+
+
+ALTER FUNCTION sam.uf_inm_armar_nc_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying, _parc character varying) OWNER TO postgres;
+
+--
+-- TOC entry 861 (class 1255 OID 5282870)
+-- Name: uf_inm_armar_ncc(integer, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: sam; Owner: postgres
+--
+
+CREATE FUNCTION sam.uf_inm_armar_ncc(_calle_id integer, _mz1_s1 character varying, _mz1_s2 character varying, _mz1_s3 character varying, _mz1_lmanz character varying, _mz1_nmanz character varying, _mz2_s1 character varying, _mz2_s2 character varying, _mz2_s3 character varying, _mz2_lmanz character varying, _mz2_nmanz character varying) RETURNS character varying
+    LANGUAGE plpgsql
+    AS $$
+declare
+	ncc varchar(40);
+	vnombre varchar(8);
+	vlargo smallint:=0;
+	l_s1 smallint:= 0;
+    l_s2 smallint:= 0;
+    l_s3 smallint:= 0;
+    l_nmanz smallint:= 0;
+BEGIN
+	-- Recupero el largo de cada campo de la configuracion de nc
+    -- El caracter de relleno siempre es '0'
+	For vnombre,vlargo In Select campo,max_largo
+      From sam.config_inm_nc Where aplica=true Loop
+		If vnombre='s1' Then l_s1:=vlargo; End If;
+		If vnombre='s2' Then l_s2:=vlargo; End If;
+		If vnombre='s3' Then l_s3:=vlargo; End If;
+		If vnombre='manz' Then l_nmanz:=vlargo; End If;
+	End Loop;
+    ncc := lpad(cast(_calle_id as varchar(6)),6,'0')
+		|| lpad(ltrim(_mz1_s1),l_s1,'0')
+        || lpad(ltrim(_mz1_s2),l_s2,'0')
+		|| lpad(ltrim(_mz1_s3),l_s3,'0')
+        || lpad(ltrim(_mz1_nmanz),l_nmanz,'0')
+		|| lpad(ltrim(_mz2_s1),l_s1,'0')
+        || lpad(ltrim(_mz2_s2),l_s2,'0')
+		|| lpad(ltrim(_mz2_s3),l_s3,'0')
+        || lpad(ltrim(_mz2_nmanz),l_nmanz,'0');
+
+	return ncc;
+END;
+$$;
+
+
+ALTER FUNCTION sam.uf_inm_armar_ncc(_calle_id integer, _mz1_s1 character varying, _mz1_s2 character varying, _mz1_s3 character varying, _mz1_lmanz character varying, _mz1_nmanz character varying, _mz2_s1 character varying, _mz2_s2 character varying, _mz2_s3 character varying, _mz2_lmanz character varying, _mz2_nmanz character varying) OWNER TO postgres;
+
+--
+-- TOC entry 5686 (class 0 OID 0)
+-- Dependencies: 861
+-- Name: FUNCTION uf_inm_armar_ncc(_calle_id integer, _mz1_s1 character varying, _mz1_s2 character varying, _mz1_s3 character varying, _mz1_lmanz character varying, _mz1_nmanz character varying, _mz2_s1 character varying, _mz2_s2 character varying, _mz2_s3 character varying, _mz2_lmanz character varying, _mz2_nmanz character varying); Type: COMMENT; Schema: sam; Owner: postgres
+--
+
+COMMENT ON FUNCTION sam.uf_inm_armar_ncc(_calle_id integer, _mz1_s1 character varying, _mz1_s2 character varying, _mz1_s3 character varying, _mz1_lmanz character varying, _mz1_nmanz character varying, _mz2_s1 character varying, _mz2_s2 character varying, _mz2_s3 character varying, _mz2_lmanz character varying, _mz2_nmanz character varying) IS 'Genera la nomenclatura de Cuadra para los Ejes de Calle.
+Parámetros:
+  calle_id integer: Código de Calle.
+  mz1_s1 varchar: s1 de la Manzana 1.
+  mz1_s2 varchar: s1 de la Manzana 1.
+  mz1_s3 varchar: s1 de la Manzana 1.
+  mz1_lmanz varchar: Letra de la Manzana 1.
+  mz1_nmanz varchar: Número de la Manzana 1.
+  mz2_s1 varchar: s1 de la Manzana 2.
+  mz2_s2 varchar: s1 de la Manzana 2.
+  mz2_s3 varchar: s1 de la Manzana 2.
+  mz2_lmanz varchar: Letra de la Manzana 2.
+  mz2_nmanz varchar: Número de la Manzana 2.';
+
+
+--
+-- TOC entry 862 (class 1255 OID 5282871)
+-- Name: uf_inm_armar_ncm(character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: sam; Owner: postgres
+--
+
+CREATE FUNCTION sam.uf_inm_armar_ncm(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) RETURNS character varying
+    LANGUAGE plpgsql
+    AS $$
+declare
+	ncm varchar(26);
+	vnombre varchar(8);
+	vlargo smallint:=0;
+	l_s1 smallint:= 0;
+    l_s2 smallint:= 0;
+    l_s3 smallint:= 0;
+    l_manz smallint:= 0;
+BEGIN
+	-- Recupero el largo de cada campo de la configuracion de nc
+    -- El caracter de relleno siempre es '0'
+	For vnombre,vlargo In Select campo,max_largo
+      From sam.config_inm_nc Where aplica=true Loop
+		If vnombre='s1' Then l_s1:=vlargo; End If;
+		If vnombre='s2' Then l_s2:=vlargo; End If;
+		If vnombre='s3' Then l_s3:=vlargo; End If;
+		If vnombre='manz' Then l_manz:=vlargo; End If;
+	End Loop;
+	ncm:= lpad(ltrim(_s1),l_s1,'0')
+        || lpad(ltrim(_s2),l_s2,'0')
+		|| lpad(ltrim(_s3),l_s3,'0')
+        || lpad(ltrim(_manz),l_manz,'0');
+
+	return ncm;
+END;
+$$;
+
+
+ALTER FUNCTION sam.uf_inm_armar_ncm(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) OWNER TO postgres;
+
+--
+-- TOC entry 5687 (class 0 OID 0)
+-- Dependencies: 862
+-- Name: FUNCTION uf_inm_armar_ncm(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying); Type: COMMENT; Schema: sam; Owner: postgres
+--
+
+COMMENT ON FUNCTION sam.uf_inm_armar_ncm(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) IS 'Devuelve la nomenclatura de manzana desarmada:
+  s1 varchar: s1 de la Manzana.
+  s2 varchar: s1 de la Manzana.
+  s3 varchar: s1 de la Manzana.
+  lmanz varchar: Letra de la Manzana.
+  nmanz varchar: Número de la Manzana.
+Parámetros: ncm  
+';
+
+
+--
+-- TOC entry 845 (class 1255 OID 5282872)
+-- Name: uf_inm_armar_ncm_guiones(character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: sam; Owner: postgres
+--
+
+CREATE FUNCTION sam.uf_inm_armar_ncm_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) RETURNS character varying
+    LANGUAGE plpgsql
+    AS $$
+declare
+	ncm varchar(26);
+	vnombre varchar(8);
+	vlargo smallint:=0;
+	l_s1 smallint:= 0;
+    l_s2 smallint:= 0;
+    l_s3 smallint:= 0;
+    l_manz smallint:= 0;
+BEGIN
+	-- Recupero el largo de cada campo de la configuracion de nc
+    -- El caracter de relleno siempre es '0'
+	For vnombre,vlargo In Select campo,max_largo
+      From sam.config_inm_nc Where aplica=true Loop
+		If vnombre='s1' Then l_s1:=vlargo; End If;
+		If vnombre='s2' Then l_s2:=vlargo; End If;
+		If vnombre='s3' Then l_s3:=vlargo; End If;
+		If vnombre='manz' Then l_manz:=vlargo; End If;
+	End Loop;
+    ncm:= _s1
+      || case when l_s2>0 then '-'||ltrim(_s2) else '' end
+      || case when l_s3>0 then '-'||ltrim(_s3) else '' end
+      || case when l_manz>0 then '-'||ltrim(_manz) else '' end;
+
+	return ncm;
+END;
+$$;
+
+
+ALTER FUNCTION sam.uf_inm_armar_ncm_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) OWNER TO postgres;
+
+--
+-- TOC entry 5688 (class 0 OID 0)
+-- Dependencies: 845
+-- Name: FUNCTION uf_inm_armar_ncm_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying); Type: COMMENT; Schema: sam; Owner: postgres
+--
+
+COMMENT ON FUNCTION sam.uf_inm_armar_ncm_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) IS 'Genera la nomenclatura de Manzana con guiones.
+Parámetros:
+  s1 varchar: s1 de la Manzana.
+  s2 varchar: s1 de la Manzana.
+  s3 varchar: s1 de la Manzana.
+  lmanz varchar: Letra de la Manzana.
+  nmanz varchar: Número de la Manzana.
+';
+	 
 
 ALTER TABLE public.v_banco_cuenta OWNER TO postgres;
 
@@ -33258,156 +33716,6 @@ CREATE VIEW public.v_his_plan AS
 
 ALTER TABLE public.v_his_plan OWNER TO postgres;
 
---
--- TOC entry 680 (class 1259 OID 5486482)
--- Name: v_inm; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.v_inm AS
- SELECT i.obj_id,
-    o.nombre,
-    i.nc,
-    sam.uf_inm_armar_nc_guiones(i.s1, i.s2, i.s3, i.manz, i.parc) AS nc_guiones,
-    i.s1,
-    i.s2,
-    i.s3,
-    i.manz,
-    i.parc,
-    i.uf,
-    i.porcuf AS porc_uf,
-    i.nc_ant,
-    i.parp,
-    i.parporigen,
-    i.plano,
-    i.anio_mensura,
-    i.expe,
-    i.urbsub,
-    us.nombre AS urbsub_nom,
-    i.regimen,
-    r.nombre AS regimen_nom,
-    i.tinm,
-    ti.nombre AS tinm_nom,
-    i.titularidad,
-    t.nombre AS titularidad_nom,
-    i.uso,
-    u.nombre AS uso_nom,
-    (((((
-        CASE COALESCE(capa.nombre, ''::character varying)
-            WHEN ''::text THEN dpa.nomcalle
-            ELSE capa.nombre
-        END)::text || ' '::text) ||
-        CASE (dpa.puerta)::text
-            WHEN '0'::text THEN ''::text
-            ELSE (dpa.puerta)::text
-        END) ||
-        CASE
-            WHEN (btrim((dpa.piso)::text) <> ALL (ARRAY[''::text, '0'::text])) THEN (' Piso: '::text || (dpa.piso)::text)
-            ELSE ''::text
-        END) ||
-        CASE
-            WHEN (btrim((dpa.dpto)::text) <> ALL (ARRAY[''::text, '0'::text])) THEN (' Dpto: '::text || (dpa.dpto)::text)
-            ELSE ''::text
-        END) AS dompar_dir,
-    ((((((((((
-        CASE COALESCE(capo.nombre, ''::character varying)
-            WHEN ''::text THEN dpo.nomcalle
-            ELSE capo.nombre
-        END)::text || ' '::text) ||
-        CASE (dpo.det)::text
-            WHEN ''::text THEN ''::text
-            ELSE ((' '::text || (dpo.det)::text) || ' '::text)
-        END) ||
-        CASE (dpo.puerta)::text
-            WHEN '0'::text THEN ''::text
-            ELSE (dpo.puerta)::text
-        END) ||
-        CASE
-            WHEN (btrim((dpo.piso)::text) <> ALL (ARRAY[''::text, '0'::text])) THEN (' Piso: '::text || (dpo.piso)::text)
-            ELSE ''::text
-        END) ||
-        CASE
-            WHEN (btrim((dpo.dpto)::text) <> ALL (ARRAY[''::text, '0'::text])) THEN (' Dpto: '::text || (dpo.dpto)::text)
-            ELSE ''::text
-        END) || ' ('::text) || ((lpo.nombre)::text || ' - '::text)) || (prpo.nombre)::text) || ')'::text) AS dompos_dir,
-    i.tmatric,
-    im.nombre AS tmatric_nom,
-    i.matric,
-    i.fchmatric,
-    i.anio,
-    i.comprador,
-    COALESCE(oc.nombre, ''::character varying) AS comprador_nom,
-    i.zonat,
-    COALESCE(zt.nombre, ''::character varying) AS zonat_nom,
-    i.zonav,
-    COALESCE(zv.nombre, ''::character varying) AS zonav_nom,
-    i.zonaop,
-    COALESCE(zo.nombre, ''::character varying) AS zonaop_nom,
-    i.agua,
-    i.cloaca,
-    i.gas,
-    i.alum,
-    s.nombre AS alum_nom,
-    i.pav,
-    tp.nombre AS pav_nom,
-    i.coef,
-    i.valbas,
-    i.frente,
-    i.supt,
-    i.supt_pasillo,
-    i.supm,
-    i.avalt,
-    (i.avalt * mm.valor) AS avalt_mm,
-    i.avalm,
-    i.es_esquina,
-    i.es_calleppal,
-    i.barr_id,
-    b.nombre AS barr_nom,
-    b.cat AS barr_cat,
-    i.patrimonio,
-    i.objeto_superp,
-    i.archivo,
-    o.est,
-    e.nombre AS est_nom,
-    o.distrib,
-    o.tdistrib,
-    o.fchalta,
-    o.fchmod,
-    o.fchbaja,
-    o.num,
-    p.ndoc,
-    p.cuit,
-    o.obs,
-    (((um.nombre)::text || ' - '::text) || to_char(o.fchmod, 'DD/MM/YYYY'::text)) AS modif,
-    o.usrmod
-   FROM (((((((((((((((((((((((((public.inm i
-     LEFT JOIN public.objeto o ON (((i.obj_id)::text = (o.obj_id)::text)))
-     LEFT JOIN public.inm_turbsub us ON (((i.urbsub)::text = (us.cod)::text)))
-     LEFT JOIN public.inm_tregimen r ON ((i.regimen = r.cod)))
-     LEFT JOIN public.inm_tipo ti ON (((i.tinm)::text = (ti.cod)::text)))
-     LEFT JOIN public.inm_ttitularidad t ON (((i.titularidad)::text = (t.cod)::text)))
-     LEFT JOIN public.inm_tuso u ON ((i.uso = u.cod)))
-     LEFT JOIN public.inm_tmatric im ON (((i.tmatric)::text = (im.cod)::text)))
-     LEFT JOIN public.inm_tzonat zt ON (((i.zonat)::text = (zt.cod)::text)))
-     LEFT JOIN public.inm_tzonav zv ON ((i.zonav = zv.cod)))
-     LEFT JOIN public.inm_tzonaop zo ON ((i.zonaop = zo.cod)))
-     LEFT JOIN public.inm_talum s ON ((i.alum = s.cod)))
-     LEFT JOIN public.domi dpa ON (((((dpa.torigen)::text = 'INM'::text) AND ((dpa.obj_id)::text = (i.obj_id)::text)) AND (dpa.id = 0))))
-     LEFT JOIN public.domi_calle capa ON ((dpa.calle_id = capa.calle_id)))
-     LEFT JOIN public.domi dpo ON (((((dpo.torigen)::text = 'OBJ'::text) AND ((dpo.obj_id)::text = (i.obj_id)::text)) AND (dpo.id = 0))))
-     LEFT JOIN public.domi_calle capo ON ((dpo.calle_id = capo.calle_id)))
-     LEFT JOIN public.domi_barrio bapo ON ((dpo.barr_id = bapo.barr_id)))
-     LEFT JOIN public.domi_localidad lpo ON ((dpo.loc_id = lpo.loc_id)))
-     LEFT JOIN public.domi_provincia prpo ON ((lpo.prov_id = prpo.prov_id)))
-     LEFT JOIN public.objeto_test e ON (((e.tobj = 1) AND (o.est = e.cod))))
-     LEFT JOIN public.domi_barrio b ON ((i.barr_id = b.barr_id)))
-     LEFT JOIN public.domi_tpav tp ON ((i.pav = tp.cod)))
-     LEFT JOIN public.persona p ON (((o.num)::text = (p.obj_id)::text)))
-     LEFT JOIN sam.sis_usuario um ON ((o.usrmod = um.usr_id)))
-     LEFT JOIN public.calc_mm mm ON (((('now'::text)::date >= mm.fchdesde) AND (('now'::text)::date <= mm.fchhasta))))
-     LEFT JOIN public.objeto oc ON (((i.comprador)::text = (oc.obj_id)::text)));
-
-
-ALTER TABLE public.v_inm OWNER TO postgres;
 
 --
 -- TOC entry 683 (class 1259 OID 5486502)
@@ -33762,6 +34070,158 @@ COMMENT ON COLUMN sam.usuarioweb.fchmod IS 'FECHA DE MODIFICACION';
 --
 
 COMMENT ON COLUMN sam.usuarioweb.usrmod IS 'CODIGO DE USUARIO QUE MODIFICO';
+
+
+--
+-- TOC entry 680 (class 1259 OID 5486482)
+-- Name: v_inm; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.v_inm AS
+ SELECT i.obj_id,
+    o.nombre,
+    i.nc,
+    sam.uf_inm_armar_nc_guiones(i.s1, i.s2, i.s3, i.manz, i.parc) AS nc_guiones,
+    i.s1,
+    i.s2,
+    i.s3,
+    i.manz,
+    i.parc,
+    i.uf,
+    i.porcuf AS porc_uf,
+    i.nc_ant,
+    i.parp,
+    i.parporigen,
+    i.plano,
+    i.anio_mensura,
+    i.expe,
+    i.urbsub,
+    us.nombre AS urbsub_nom,
+    i.regimen,
+    r.nombre AS regimen_nom,
+    i.tinm,
+    ti.nombre AS tinm_nom,
+    i.titularidad,
+    t.nombre AS titularidad_nom,
+    i.uso,
+    u.nombre AS uso_nom,
+    (((((
+        CASE COALESCE(capa.nombre, ''::character varying)
+            WHEN ''::text THEN dpa.nomcalle
+            ELSE capa.nombre
+        END)::text || ' '::text) ||
+        CASE (dpa.puerta)::text
+            WHEN '0'::text THEN ''::text
+            ELSE (dpa.puerta)::text
+        END) ||
+        CASE
+            WHEN (btrim((dpa.piso)::text) <> ALL (ARRAY[''::text, '0'::text])) THEN (' Piso: '::text || (dpa.piso)::text)
+            ELSE ''::text
+        END) ||
+        CASE
+            WHEN (btrim((dpa.dpto)::text) <> ALL (ARRAY[''::text, '0'::text])) THEN (' Dpto: '::text || (dpa.dpto)::text)
+            ELSE ''::text
+        END) AS dompar_dir,
+    ((((((((((
+        CASE COALESCE(capo.nombre, ''::character varying)
+            WHEN ''::text THEN dpo.nomcalle
+            ELSE capo.nombre
+        END)::text || ' '::text) ||
+        CASE (dpo.det)::text
+            WHEN ''::text THEN ''::text
+            ELSE ((' '::text || (dpo.det)::text) || ' '::text)
+        END) ||
+        CASE (dpo.puerta)::text
+            WHEN '0'::text THEN ''::text
+            ELSE (dpo.puerta)::text
+        END) ||
+        CASE
+            WHEN (btrim((dpo.piso)::text) <> ALL (ARRAY[''::text, '0'::text])) THEN (' Piso: '::text || (dpo.piso)::text)
+            ELSE ''::text
+        END) ||
+        CASE
+            WHEN (btrim((dpo.dpto)::text) <> ALL (ARRAY[''::text, '0'::text])) THEN (' Dpto: '::text || (dpo.dpto)::text)
+            ELSE ''::text
+        END) || ' ('::text) || ((lpo.nombre)::text || ' - '::text)) || (prpo.nombre)::text) || ')'::text) AS dompos_dir,
+    i.tmatric,
+    im.nombre AS tmatric_nom,
+    i.matric,
+    i.fchmatric,
+    i.anio,
+    i.comprador,
+    COALESCE(oc.nombre, ''::character varying) AS comprador_nom,
+    i.zonat,
+    COALESCE(zt.nombre, ''::character varying) AS zonat_nom,
+    i.zonav,
+    COALESCE(zv.nombre, ''::character varying) AS zonav_nom,
+    i.zonaop,
+    COALESCE(zo.nombre, ''::character varying) AS zonaop_nom,
+    i.agua,
+    i.cloaca,
+    i.gas,
+    i.alum,
+    s.nombre AS alum_nom,
+    i.pav,
+    tp.nombre AS pav_nom,
+    i.coef,
+    i.valbas,
+    i.frente,
+    i.supt,
+    i.supt_pasillo,
+    i.supm,
+    i.avalt,
+    (i.avalt * mm.valor) AS avalt_mm,
+    i.avalm,
+    i.es_esquina,
+    i.es_calleppal,
+    i.barr_id,
+    b.nombre AS barr_nom,
+    b.cat AS barr_cat,
+    i.patrimonio,
+    i.objeto_superp,
+    i.archivo,
+    o.est,
+    e.nombre AS est_nom,
+    o.distrib,
+    o.tdistrib,
+    o.fchalta,
+    o.fchmod,
+    o.fchbaja,
+    o.num,
+    p.ndoc,
+    p.cuit,
+    o.obs,
+    (((um.nombre)::text || ' - '::text) || to_char(o.fchmod, 'DD/MM/YYYY'::text)) AS modif,
+    o.usrmod
+   FROM (((((((((((((((((((((((((public.inm i
+     LEFT JOIN public.objeto o ON (((i.obj_id)::text = (o.obj_id)::text)))
+     LEFT JOIN public.inm_turbsub us ON (((i.urbsub)::text = (us.cod)::text)))
+     LEFT JOIN public.inm_tregimen r ON ((i.regimen = r.cod)))
+     LEFT JOIN public.inm_tipo ti ON (((i.tinm)::text = (ti.cod)::text)))
+     LEFT JOIN public.inm_ttitularidad t ON (((i.titularidad)::text = (t.cod)::text)))
+     LEFT JOIN public.inm_tuso u ON ((i.uso = u.cod)))
+     LEFT JOIN public.inm_tmatric im ON (((i.tmatric)::text = (im.cod)::text)))
+     LEFT JOIN public.inm_tzonat zt ON (((i.zonat)::text = (zt.cod)::text)))
+     LEFT JOIN public.inm_tzonav zv ON ((i.zonav = zv.cod)))
+     LEFT JOIN public.inm_tzonaop zo ON ((i.zonaop = zo.cod)))
+     LEFT JOIN public.inm_talum s ON ((i.alum = s.cod)))
+     LEFT JOIN public.domi dpa ON (((((dpa.torigen)::text = 'INM'::text) AND ((dpa.obj_id)::text = (i.obj_id)::text)) AND (dpa.id = 0))))
+     LEFT JOIN public.domi_calle capa ON ((dpa.calle_id = capa.calle_id)))
+     LEFT JOIN public.domi dpo ON (((((dpo.torigen)::text = 'OBJ'::text) AND ((dpo.obj_id)::text = (i.obj_id)::text)) AND (dpo.id = 0))))
+     LEFT JOIN public.domi_calle capo ON ((dpo.calle_id = capo.calle_id)))
+     LEFT JOIN public.domi_barrio bapo ON ((dpo.barr_id = bapo.barr_id)))
+     LEFT JOIN public.domi_localidad lpo ON ((dpo.loc_id = lpo.loc_id)))
+     LEFT JOIN public.domi_provincia prpo ON ((lpo.prov_id = prpo.prov_id)))
+     LEFT JOIN public.objeto_test e ON (((e.tobj = 1) AND (o.est = e.cod))))
+     LEFT JOIN public.domi_barrio b ON ((i.barr_id = b.barr_id)))
+     LEFT JOIN public.domi_tpav tp ON ((i.pav = tp.cod)))
+     LEFT JOIN public.persona p ON (((o.num)::text = (p.obj_id)::text)))
+     LEFT JOIN sam.sis_usuario um ON ((o.usrmod = um.usr_id)))
+     LEFT JOIN public.calc_mm mm ON (((('now'::text)::date >= mm.fchdesde) AND (('now'::text)::date <= mm.fchhasta))))
+     LEFT JOIN public.objeto oc ON (((i.comprador)::text = (oc.obj_id)::text)));
+
+
+ALTER TABLE public.v_inm OWNER TO postgres;
 
 
 --
@@ -43375,143 +43835,6 @@ CREATE INDEX idx_ctacte_liq_manual ON temp.ctacte_liq_manual USING btree (liq_id
 
 
 
---
--- TOC entry 5420 (class 2620 OID 5317072)
--- Name: calc_act tr_calc_act; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_calc_act AFTER INSERT ON public.calc_act FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_calc_act();
-
-
---
--- TOC entry 5408 (class 2620 OID 5316557)
--- Name: calc_interes tr_calc_interes; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_calc_interes AFTER INSERT ON public.calc_interes FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_calc_interes();
-
-
---
--- TOC entry 5409 (class 2620 OID 5316558)
--- Name: calc_mm tr_calc_mm; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_calc_mm AFTER INSERT ON public.calc_mm FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_calc_mm();
-
-
---
--- TOC entry 5410 (class 2620 OID 5316559)
--- Name: cem tr_his_cementerio; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_cementerio AFTER INSERT OR DELETE OR UPDATE ON public.cem FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_cem();
-
-ALTER TABLE public.cem DISABLE TRIGGER tr_his_cementerio;
-
-
---
--- TOC entry 5411 (class 2620 OID 5316560)
--- Name: comer tr_his_comer; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_comer AFTER INSERT OR DELETE OR UPDATE ON public.comer FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_comer();
-
-
---
--- TOC entry 5412 (class 2620 OID 5316561)
--- Name: ctacte_ajuste tr_his_ctacte_ajuste; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_ctacte_ajuste AFTER DELETE OR UPDATE ON public.ctacte_ajuste FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_ctacte_ajuste();
-
-
---
--- TOC entry 5413 (class 2620 OID 5316562)
--- Name: domi tr_his_domi; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_domi AFTER DELETE OR UPDATE ON public.domi FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_domi();
-
-ALTER TABLE public.domi DISABLE TRIGGER tr_his_domi;
-
-
---
--- TOC entry 5414 (class 2620 OID 5316563)
--- Name: inm tr_his_inmueble; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_inmueble AFTER INSERT OR DELETE OR UPDATE ON public.inm FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_inm();
-
-ALTER TABLE public.inm DISABLE TRIGGER tr_his_inmueble;
-
-
---
--- TOC entry 5415 (class 2620 OID 5316564)
--- Name: inm_mej tr_his_inmueble_mej; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_inmueble_mej AFTER INSERT OR DELETE OR UPDATE ON public.inm_mej FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_inm_mej();
-
-ALTER TABLE public.inm_mej DISABLE TRIGGER tr_his_inmueble_mej;
-
-
---
--- TOC entry 5406 (class 2620 OID 5316565)
--- Name: objeto tr_his_objeto; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_objeto BEFORE INSERT OR UPDATE ON public.objeto FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_objeto();
-
-ALTER TABLE public.objeto DISABLE TRIGGER tr_his_objeto;
-
-
---
--- TOC entry 5416 (class 2620 OID 5316566)
--- Name: objeto_item tr_his_objeto_item; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_objeto_item AFTER INSERT OR DELETE OR UPDATE ON public.objeto_item FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_objeto_item();
-
-ALTER TABLE public.objeto_item DISABLE TRIGGER tr_his_objeto_item;
-
-
---
--- TOC entry 5407 (class 2620 OID 5316567)
--- Name: persona tr_his_persona; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_persona AFTER INSERT OR DELETE OR UPDATE ON public.persona FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_persona();
-
-ALTER TABLE public.persona DISABLE TRIGGER tr_his_persona;
-
-
---
--- TOC entry 5417 (class 2620 OID 5316568)
--- Name: plan tr_his_plan; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_plan AFTER INSERT OR DELETE OR UPDATE ON public.plan FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_plan();
-
-ALTER TABLE public.plan DISABLE TRIGGER tr_his_plan;
-
-
---
--- TOC entry 5418 (class 2620 OID 5316569)
--- Name: rodado tr_his_rodado; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER tr_his_rodado AFTER INSERT OR DELETE OR UPDATE ON public.rodado FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_rodado();
-
-ALTER TABLE public.rodado DISABLE TRIGGER tr_his_rodado;
-
-
---
--- TOC entry 5419 (class 2620 OID 5316572)
--- Name: sis_usuario_acc sis_usuario_acc_tr; Type: TRIGGER; Schema: sam; Owner: postgres
---
-
-CREATE TRIGGER sis_usuario_acc_tr AFTER INSERT ON sam.sis_usuario_acc FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_sis_usuario_acc();
-
 
 --
 -- TOC entry 5398 (class 2606 OID 5316573)
@@ -46865,192 +47188,6 @@ $$;
 
 ALTER FUNCTION sam.uf_caja_apertura(_caja_id integer, _fecha date, _cajero integer, _externa boolean, _accion character varying) OWNER TO postgres;
 
---
--- TOC entry 731 (class 1255 OID 5282690)
--- Name: uf_caja_codbarra(integer, character varying, integer, integer, integer, numeric, date, numeric, date); Type: FUNCTION; Schema: sam; Owner: postgres
---
-
-CREATE FUNCTION sam.uf_caja_codbarra(_trib_id integer, _obj_id character varying, _subcta integer, _anio integer, _cuota integer, _monto numeric, _fchvenc date, _monto2 numeric DEFAULT 0, _fchvenc2 date DEFAULT NULL::date) RETURNS character varying
-    LANGUAGE plpgsql
-    AS $$
-declare
-    codbarra varchar(44);
-    muni varchar(4);
-    auxobjanio varchar(9);
-    n smallint;
-    x smallint;
-    suma smallint;
-    verif smallint;
-    cb_monto numeric(12,2);
-    recargo numeric(12,2);
-    difdias smallint;
-begin
-    -- Función que genera el Código de barra a partir de los parámetros
-
-    select into muni m.cod_ent from sam.muni_datos m;
-
-    If (_cuota=0 and _fchvenc is null) Then
-      	codbarra= '';
-    ElsIf (_monto < 0) Then 
-	codbarra= '';
-    Else
-    	If _trib_id in (1,2,3,10) Then
-        	auxobjanio := iif(_subcta=0, lpad(cast(_anio as varchar(9)),9,'0'), _subcta || lpad(cast(_anio as varchar(8)),8,'0'));
-        Else
-        	auxobjanio := iif(_subcta=0, substr(_obj_id,2,7), _subcta || substr(_obj_id,3,6)) || substr(cast(_anio as varchar(4)),3,2);
-        End If;
-        If (_monto < 0) Then
-        	cb_monto := 0;
-        Else
-        	cb_monto = _monto;
-        End If;
-
-        If (_monto2 = 0 or _monto2 = cb_monto) Then
-            difdias := 0;
-            recargo := 0;
-        Else
-            difdias = _fchvenc2 - _fchvenc;
-            if (difdias > 0) Then
-              recargo := _monto2 - cb_monto;
-            else
-              difdias := 0;
-              recargo := 0;
-            end if;  
-        End If;
-
-        codbarra = muni
-        	|| lpad(cast(trunc(cb_monto) as varchar(6)),6,'0')
-        	|| lpad(cast(trunc((cb_monto - trunc(cb_monto))*100) as varchar(2)),2,'0')
-        	|| to_char(_fchvenc,'YYddd')
-            || lpad(cast(_trib_id as varchar(2)),2,'0')
-        	|| auxobjanio
-	        || lpad(cast(_cuota as varchar(3)),3,'0')
-            || '0'       -- moneda
-        	|| lpad(cast(trunc(recargo) as varchar(4)),4,'0')		-- recargo parte entera
-        	|| lpad(cast(trunc((recargo - trunc(recargo))*100) as varchar(2)),2,'0'); -- recargo parte decimal
-
-            codbarra = codbarra || lpad(cast(difdias as varchar(2)),2,'0');      -- días al 2° venc.
-
-        -- Genero los dígitos de paridad
-        x := 1;
-        suma := 0;
-        For i IN 1..40 Loop
-        	n := cast(substr(codbarra,i,1) as smallint);
-            suma := suma + n * x;
-            If x=9 Then
-            	x := 3;
-            Else
-            	x := x + 2;
-            End If;
-        End Loop;
-
-        verif := trunc(suma/2)::integer % 10;
-        codbarra := codbarra || verif::text;
-        suma := suma + verif * x;
-        verif := trunc(suma/2)::integer % 10;
-        codbarra := codbarra || verif::text;
-
-	End If;
-
-    Return codbarra;
-
-end
-$$;
-
-
-ALTER FUNCTION sam.uf_caja_codbarra(_trib_id integer, _obj_id character varying, _subcta integer, _anio integer, _cuota integer, _monto numeric, _fchvenc date, _monto2 numeric, _fchvenc2 date) OWNER TO postgres;
-
---
--- TOC entry 732 (class 1255 OID 5282691)
--- Name: uf_caja_codbarra_det(character varying); Type: FUNCTION; Schema: sam; Owner: postgres
---
-
-CREATE FUNCTION sam.uf_caja_codbarra_det(_codbarra character varying) RETURNS TABLE(trib_id smallint, obj_id character varying, subcta smallint, anio integer, cuota smallint, monto numeric, fchvenc date)
-    LANGUAGE plpgsql
-    AS $$
-declare
-    ttrib smallint;
-    vletra varchar(1);
-    pos smallint;
-    vctacte_id integer;
-    vtrib_id smallint;
-    vanio integer;
-begin
-  -- Función que obtiene los componentes del código de barra
-
-  -- Inicializo los datos
-  trib_id=0;  obj_id='';  subcta=0;  anio=0;  cuota=0; monto=0;  fchvenc=null;
-
-  If (length(_codbarra)=42) Then
-    trib_id := cast(substr(_CodBarra,18,2) as smallint);
-    subcta := cast(substr(_CodBarra,20,1) as smallint);
-    cuota := cast(substr(_codbarra,29,3) as smallint);
-    monto := cast(substr(_codbarra,5,8) as decimal(15,2))/100;
-    fchvenc := to_date(substr(_codbarra,13,5),'YYddd');
-
-    If (trib_id in (1,2,3,10)) Then
-    	If subcta=0 Then
-        	anio := cast(substr(_codbarra,20,9) as integer);
-		Else
-        	anio := cast(substr(_codbarra,21,8) as integer);
-        End If; 
-    	vanio= anio;
-        -- Obtengo el objeto del plan o facilidad
-        If (trib_id=1) Then
-        	Select Into Obj_id p.obj_id from plan p where plan_id=vanio;
-        elseif (trib_id=2) Then
-	        Select Into Obj_id f.obj_id from facilida f where faci_id=vanio;
-        else
-            Select Into Obj_id p.obj_id from ctacte_pagocta p where pago_id=vanio;
-        End If;
-    Else
-	    anio := 2000 + cast(substr(_codbarra,27,2) as integer);
-
-        vtrib_id = trib_id;
-        select into vletra  o.letra
-        from trib t left join objeto_tipo o on t.tobj = o.Cod
-        where t.trib_id = vtrib_id ;
-
-        If (vletra is null) Then
-        	If (Trib_id <> 12) Then
-            	raise exception 'Tributo u objeto no definido adecuadamente';
-            Else
-            	vletra :='_';
-            End If;
-        End If;
-		
-        If subcta=0 Then	-- Si subcuenta es distinta de cero, tomo el objeto de 6 caracteres
-	    	obj_id := vletra || substr(_CodBarra,20,7);
-        Else
-        	obj_id := vletra || '0' || substr(_CodBarra,21,6);
-        End If;
-	End If;
-
-  ElseIf upper(substr(_codbarra,1,1))='C' Then -- Código Especial para Higiene
-	    pos := position('-' in _codbarra);
-        trib_id := 22;
-        obj_id := 'C' || lpad(substr(_codbarra,2,pos-2),7,'0');
-        subcta := 0;
-        anio := cast(substr(_codbarra,pos+1,4) as integer);
-        cuota := cast(substr(_codbarra,pos+5,2) as integer);
-
-  ElseIf (length(_codbarra)>10) Then  --error, supera el dato integer para ser ctacte_id
-		Raise Exception 'Datos inexistentes';
-  Else
-        -- si el codbarra es de menor longitud significa que se trata de ctacte_id
-        vctacte_id := cast(_codbarra as integer);
-
-        Select Into trib_id, obj_id, subcta, anio, cuota, monto, fchvenc
-        c.trib_id, c.obj_id, c.subcta, c.anio, c.cuota, c.nominal, c.fchvenc
-        From ctacte c Where c.ctacte_id = vctacte_id;
-  End If;
-
-  Return Next;
-end
-$$;
-
-
-ALTER FUNCTION sam.uf_caja_codbarra_det(_codbarra character varying) OWNER TO postgres;
 
 --
 -- TOC entry 733 (class 1255 OID 5282692)
@@ -54312,7 +54449,7 @@ ALTER FUNCTION sam.uf_dj_calcular_rubro(_rubro_id character varying, _trib_id in
 -- TOC entry 811 (class 1255 OID 5282798)
 -- Name: uf_dj_contador(integer); Type: FUNCTION; Schema: sam; Owner: postgres
 --
-
+/*
 CREATE FUNCTION sam.uf_dj_contador(_contador_id integer) RETURNS TABLE(id integer, contador smallint, contador_nom character varying, fecha timestamp without time zone, cant integer, modif character varying)
     LANGUAGE sql
     AS $_$
@@ -54328,7 +54465,7 @@ $_$;
 
 
 ALTER FUNCTION sam.uf_dj_contador(_contador_id integer) OWNER TO postgres;
-
+*/
 --
 -- TOC entry 812 (class 1255 OID 5282799)
 -- Name: uf_dj_generar(integer, character varying, integer, integer, integer, integer, integer, integer, date, boolean, integer, integer, integer, integer, numeric, integer[]); Type: FUNCTION; Schema: sam; Owner: postgres
@@ -57870,275 +58007,6 @@ $$;
 
 ALTER FUNCTION sam.uf_inm_armar_nc_completo(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying, _parc character varying) OWNER TO postgres;
 
---
--- TOC entry 859 (class 1255 OID 5282868)
--- Name: uf_inm_armar_nc_guiones(character varying); Type: FUNCTION; Schema: sam; Owner: postgres
---
-
-CREATE FUNCTION sam.uf_inm_armar_nc_guiones(_obj_id character varying) RETURNS character varying
-    LANGUAGE plpgsql
-    AS $$
-declare
-    vs1 varchar;
-    vs2 varchar;
-    vs3 varchar;
-    vmanz varchar;
-    vparc varchar;
-	nc varchar(25);
-	vnombre varchar(8);
-	vlargo smallint:=0;
-	l_s1 smallint:= 0;
-    l_s2 smallint:= 0;
-    l_s3 smallint:= 0;
-    l_manz smallint:= 0;
-    l_parc smallint:= 0;
-    sep varchar(1);
-BEGIN
-	-- Recupero el largo de cada campo de la configuracion de nc
-    -- No se utilizar caracter de relleno, se separan los valores que intervienen con guiones
-    sep = '-';
-    
-	For vnombre,vlargo In Select campo,max_largo
-      From sam.config_inm_nc Where aplica=true Loop
-		If vnombre='s1' Then l_s1:=vlargo; End If;
-		If vnombre='s2' Then l_s2:=vlargo; End If;
-		If vnombre='s3' Then l_s3:=vlargo; End If;
-		If vnombre='manz' Then l_manz:=vlargo; End If;
-		If vnombre='parc' Then l_parc:=vlargo; End If;
-	End Loop;
-    Select Into vs1, vs2, vs3, vmanz, vparc
-      i.s1, i.s2, i.s3, i.manz, i.parc
-	  from inm i where i.obj_id = _obj_id;
-
-    nc:= case when l_s1>0 then trim(vs1)||sep else '' end
-      || case when l_s2>0 then trim(vs2)||sep else '' end
-      || case when l_s3>0 then trim(vs3)||sep else '' end
-      || case when l_manz>0 then trim(vmanz)||sep else '' end
-      || case when l_parc>0 then trim(vparc) else '' end;
-
-    if nc is null then nc= ''; end if;
-	return nc;
-END;
-$$;
-
-
-ALTER FUNCTION sam.uf_inm_armar_nc_guiones(_obj_id character varying) OWNER TO postgres;
-
---
--- TOC entry 860 (class 1255 OID 5282869)
--- Name: uf_inm_armar_nc_guiones(character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: sam; Owner: postgres
---
-
-CREATE FUNCTION sam.uf_inm_armar_nc_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying, _parc character varying) RETURNS character varying
-    LANGUAGE plpgsql
-    AS $$
-declare
-	nc varchar(25);
-	vnombre varchar(8);
-	vlargo smallint:=0;
-	l_s1 smallint:= 0;
-        l_s2 smallint:= 0;
-        l_s3 smallint:= 0;
-        l_manz smallint:= 0;
-        l_parc smallint:= 0;
-        sep varchar(1);
-BEGIN
-	-- Recupero el largo de cada campo de la configuracion de nc
-    -- No se utilizar caracter de relleno, se separan los valores que intervienen con guiones y otro separador
-    sep = '-';
-    
-	For vnombre,vlargo In Select campo,max_largo
-      From sam.config_inm_nc Where aplica=true Loop
-		If vnombre='s1' Then l_s1:=vlargo; End If;
-		If vnombre='s2' Then l_s2:=vlargo; End If;
-		If vnombre='s3' Then l_s3:=vlargo; End If;
-		If vnombre='manz' Then l_manz:=vlargo; End If;
-		If vnombre='parc' Then l_parc:=vlargo; End If;
-	End Loop;
-
-    nc:= case when l_s1>0 then trim(_s1)||sep else '' end
-      || case when l_s2>0 then trim(_s2)||sep else '' end
-      || case when l_s3>0 then trim(_s3)||sep else '' end
-      || case when l_manz>0 then trim(_manz)||sep else '' end
-      || case when l_parc>0 then trim(_parc) else '' end;
-
-	return nc;
-END;
-$$;
-
-
-ALTER FUNCTION sam.uf_inm_armar_nc_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying, _parc character varying) OWNER TO postgres;
-
---
--- TOC entry 861 (class 1255 OID 5282870)
--- Name: uf_inm_armar_ncc(integer, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: sam; Owner: postgres
---
-
-CREATE FUNCTION sam.uf_inm_armar_ncc(_calle_id integer, _mz1_s1 character varying, _mz1_s2 character varying, _mz1_s3 character varying, _mz1_lmanz character varying, _mz1_nmanz character varying, _mz2_s1 character varying, _mz2_s2 character varying, _mz2_s3 character varying, _mz2_lmanz character varying, _mz2_nmanz character varying) RETURNS character varying
-    LANGUAGE plpgsql
-    AS $$
-declare
-	ncc varchar(40);
-	vnombre varchar(8);
-	vlargo smallint:=0;
-	l_s1 smallint:= 0;
-    l_s2 smallint:= 0;
-    l_s3 smallint:= 0;
-    l_nmanz smallint:= 0;
-BEGIN
-	-- Recupero el largo de cada campo de la configuracion de nc
-    -- El caracter de relleno siempre es '0'
-	For vnombre,vlargo In Select campo,max_largo
-      From sam.config_inm_nc Where aplica=true Loop
-		If vnombre='s1' Then l_s1:=vlargo; End If;
-		If vnombre='s2' Then l_s2:=vlargo; End If;
-		If vnombre='s3' Then l_s3:=vlargo; End If;
-		If vnombre='manz' Then l_nmanz:=vlargo; End If;
-	End Loop;
-    ncc := lpad(cast(_calle_id as varchar(6)),6,'0')
-		|| lpad(ltrim(_mz1_s1),l_s1,'0')
-        || lpad(ltrim(_mz1_s2),l_s2,'0')
-		|| lpad(ltrim(_mz1_s3),l_s3,'0')
-        || lpad(ltrim(_mz1_nmanz),l_nmanz,'0')
-		|| lpad(ltrim(_mz2_s1),l_s1,'0')
-        || lpad(ltrim(_mz2_s2),l_s2,'0')
-		|| lpad(ltrim(_mz2_s3),l_s3,'0')
-        || lpad(ltrim(_mz2_nmanz),l_nmanz,'0');
-
-	return ncc;
-END;
-$$;
-
-
-ALTER FUNCTION sam.uf_inm_armar_ncc(_calle_id integer, _mz1_s1 character varying, _mz1_s2 character varying, _mz1_s3 character varying, _mz1_lmanz character varying, _mz1_nmanz character varying, _mz2_s1 character varying, _mz2_s2 character varying, _mz2_s3 character varying, _mz2_lmanz character varying, _mz2_nmanz character varying) OWNER TO postgres;
-
---
--- TOC entry 5686 (class 0 OID 0)
--- Dependencies: 861
--- Name: FUNCTION uf_inm_armar_ncc(_calle_id integer, _mz1_s1 character varying, _mz1_s2 character varying, _mz1_s3 character varying, _mz1_lmanz character varying, _mz1_nmanz character varying, _mz2_s1 character varying, _mz2_s2 character varying, _mz2_s3 character varying, _mz2_lmanz character varying, _mz2_nmanz character varying); Type: COMMENT; Schema: sam; Owner: postgres
---
-
-COMMENT ON FUNCTION sam.uf_inm_armar_ncc(_calle_id integer, _mz1_s1 character varying, _mz1_s2 character varying, _mz1_s3 character varying, _mz1_lmanz character varying, _mz1_nmanz character varying, _mz2_s1 character varying, _mz2_s2 character varying, _mz2_s3 character varying, _mz2_lmanz character varying, _mz2_nmanz character varying) IS 'Genera la nomenclatura de Cuadra para los Ejes de Calle.
-Parámetros:
-  calle_id integer: Código de Calle.
-  mz1_s1 varchar: s1 de la Manzana 1.
-  mz1_s2 varchar: s1 de la Manzana 1.
-  mz1_s3 varchar: s1 de la Manzana 1.
-  mz1_lmanz varchar: Letra de la Manzana 1.
-  mz1_nmanz varchar: Número de la Manzana 1.
-  mz2_s1 varchar: s1 de la Manzana 2.
-  mz2_s2 varchar: s1 de la Manzana 2.
-  mz2_s3 varchar: s1 de la Manzana 2.
-  mz2_lmanz varchar: Letra de la Manzana 2.
-  mz2_nmanz varchar: Número de la Manzana 2.';
-
-
---
--- TOC entry 862 (class 1255 OID 5282871)
--- Name: uf_inm_armar_ncm(character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: sam; Owner: postgres
---
-
-CREATE FUNCTION sam.uf_inm_armar_ncm(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) RETURNS character varying
-    LANGUAGE plpgsql
-    AS $$
-declare
-	ncm varchar(26);
-	vnombre varchar(8);
-	vlargo smallint:=0;
-	l_s1 smallint:= 0;
-    l_s2 smallint:= 0;
-    l_s3 smallint:= 0;
-    l_manz smallint:= 0;
-BEGIN
-	-- Recupero el largo de cada campo de la configuracion de nc
-    -- El caracter de relleno siempre es '0'
-	For vnombre,vlargo In Select campo,max_largo
-      From sam.config_inm_nc Where aplica=true Loop
-		If vnombre='s1' Then l_s1:=vlargo; End If;
-		If vnombre='s2' Then l_s2:=vlargo; End If;
-		If vnombre='s3' Then l_s3:=vlargo; End If;
-		If vnombre='manz' Then l_manz:=vlargo; End If;
-	End Loop;
-	ncm:= lpad(ltrim(_s1),l_s1,'0')
-        || lpad(ltrim(_s2),l_s2,'0')
-		|| lpad(ltrim(_s3),l_s3,'0')
-        || lpad(ltrim(_manz),l_manz,'0');
-
-	return ncm;
-END;
-$$;
-
-
-ALTER FUNCTION sam.uf_inm_armar_ncm(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) OWNER TO postgres;
-
---
--- TOC entry 5687 (class 0 OID 0)
--- Dependencies: 862
--- Name: FUNCTION uf_inm_armar_ncm(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying); Type: COMMENT; Schema: sam; Owner: postgres
---
-
-COMMENT ON FUNCTION sam.uf_inm_armar_ncm(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) IS 'Devuelve la nomenclatura de manzana desarmada:
-  s1 varchar: s1 de la Manzana.
-  s2 varchar: s1 de la Manzana.
-  s3 varchar: s1 de la Manzana.
-  lmanz varchar: Letra de la Manzana.
-  nmanz varchar: Número de la Manzana.
-Parámetros: ncm  
-';
-
-
---
--- TOC entry 845 (class 1255 OID 5282872)
--- Name: uf_inm_armar_ncm_guiones(character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: sam; Owner: postgres
---
-
-CREATE FUNCTION sam.uf_inm_armar_ncm_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) RETURNS character varying
-    LANGUAGE plpgsql
-    AS $$
-declare
-	ncm varchar(26);
-	vnombre varchar(8);
-	vlargo smallint:=0;
-	l_s1 smallint:= 0;
-    l_s2 smallint:= 0;
-    l_s3 smallint:= 0;
-    l_manz smallint:= 0;
-BEGIN
-	-- Recupero el largo de cada campo de la configuracion de nc
-    -- El caracter de relleno siempre es '0'
-	For vnombre,vlargo In Select campo,max_largo
-      From sam.config_inm_nc Where aplica=true Loop
-		If vnombre='s1' Then l_s1:=vlargo; End If;
-		If vnombre='s2' Then l_s2:=vlargo; End If;
-		If vnombre='s3' Then l_s3:=vlargo; End If;
-		If vnombre='manz' Then l_manz:=vlargo; End If;
-	End Loop;
-    ncm:= _s1
-      || case when l_s2>0 then '-'||ltrim(_s2) else '' end
-      || case when l_s3>0 then '-'||ltrim(_s3) else '' end
-      || case when l_manz>0 then '-'||ltrim(_manz) else '' end;
-
-	return ncm;
-END;
-$$;
-
-
-ALTER FUNCTION sam.uf_inm_armar_ncm_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) OWNER TO postgres;
-
---
--- TOC entry 5688 (class 0 OID 0)
--- Dependencies: 845
--- Name: FUNCTION uf_inm_armar_ncm_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying); Type: COMMENT; Schema: sam; Owner: postgres
---
-
-COMMENT ON FUNCTION sam.uf_inm_armar_ncm_guiones(_s1 character varying, _s2 character varying, _s3 character varying, _manz character varying) IS 'Genera la nomenclatura de Manzana con guiones.
-Parámetros:
-  s1 varchar: s1 de la Manzana.
-  s2 varchar: s1 de la Manzana.
-  s3 varchar: s1 de la Manzana.
-  lmanz varchar: Letra de la Manzana.
-  nmanz varchar: Número de la Manzana.
-';
 
 
 --
@@ -64327,6 +64195,143 @@ ALTER FUNCTION sam.uf_usuario_sistema(_usr_id integer) OWNER TO postgres;
 COMMENT ON FUNCTION sam.uf_usuario_sistema(_usr_id integer) IS 'devuelve un informe de los sistemas a los cuales tiene acceso el usuario';
 
 
+
+--
+-- TOC entry 5420 (class 2620 OID 5317072)
+-- Name: calc_act tr_calc_act; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_calc_act AFTER INSERT ON public.calc_act FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_calc_act();
+
+
+--
+-- TOC entry 5408 (class 2620 OID 5316557)
+-- Name: calc_interes tr_calc_interes; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_calc_interes AFTER INSERT ON public.calc_interes FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_calc_interes();
+
+
+--
+-- TOC entry 5409 (class 2620 OID 5316558)
+-- Name: calc_mm tr_calc_mm; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_calc_mm AFTER INSERT ON public.calc_mm FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_calc_mm();
+
+
+--
+-- TOC entry 5410 (class 2620 OID 5316559)
+-- Name: cem tr_his_cementerio; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_cementerio AFTER INSERT OR DELETE OR UPDATE ON public.cem FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_cem();
+
+ALTER TABLE public.cem DISABLE TRIGGER tr_his_cementerio;
+
+
+--
+-- TOC entry 5411 (class 2620 OID 5316560)
+-- Name: comer tr_his_comer; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_comer AFTER INSERT OR DELETE OR UPDATE ON public.comer FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_comer();
+
+
+--
+-- TOC entry 5412 (class 2620 OID 5316561)
+-- Name: ctacte_ajuste tr_his_ctacte_ajuste; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_ctacte_ajuste AFTER DELETE OR UPDATE ON public.ctacte_ajuste FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_ctacte_ajuste();
+
+
+--
+-- TOC entry 5413 (class 2620 OID 5316562)
+-- Name: domi tr_his_domi; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_domi AFTER DELETE OR UPDATE ON public.domi FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_domi();
+
+ALTER TABLE public.domi DISABLE TRIGGER tr_his_domi;
+
+
+--
+-- TOC entry 5414 (class 2620 OID 5316563)
+-- Name: inm tr_his_inmueble; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_inmueble AFTER INSERT OR DELETE OR UPDATE ON public.inm FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_inm();
+
+ALTER TABLE public.inm DISABLE TRIGGER tr_his_inmueble;
+
+
+--
+-- TOC entry 5415 (class 2620 OID 5316564)
+-- Name: inm_mej tr_his_inmueble_mej; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_inmueble_mej AFTER INSERT OR DELETE OR UPDATE ON public.inm_mej FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_inm_mej();
+
+ALTER TABLE public.inm_mej DISABLE TRIGGER tr_his_inmueble_mej;
+
+
+--
+-- TOC entry 5406 (class 2620 OID 5316565)
+-- Name: objeto tr_his_objeto; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_objeto BEFORE INSERT OR UPDATE ON public.objeto FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_objeto();
+
+ALTER TABLE public.objeto DISABLE TRIGGER tr_his_objeto;
+
+
+--
+-- TOC entry 5416 (class 2620 OID 5316566)
+-- Name: objeto_item tr_his_objeto_item; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_objeto_item AFTER INSERT OR DELETE OR UPDATE ON public.objeto_item FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_objeto_item();
+
+ALTER TABLE public.objeto_item DISABLE TRIGGER tr_his_objeto_item;
+
+
+--
+-- TOC entry 5407 (class 2620 OID 5316567)
+-- Name: persona tr_his_persona; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_persona AFTER INSERT OR DELETE OR UPDATE ON public.persona FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_persona();
+
+ALTER TABLE public.persona DISABLE TRIGGER tr_his_persona;
+
+
+--
+-- TOC entry 5417 (class 2620 OID 5316568)
+-- Name: plan tr_his_plan; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_plan AFTER INSERT OR DELETE OR UPDATE ON public.plan FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_plan();
+
+ALTER TABLE public.plan DISABLE TRIGGER tr_his_plan;
+
+
+--
+-- TOC entry 5418 (class 2620 OID 5316569)
+-- Name: rodado tr_his_rodado; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_his_rodado AFTER INSERT OR DELETE OR UPDATE ON public.rodado FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_his_rodado();
+
+ALTER TABLE public.rodado DISABLE TRIGGER tr_his_rodado;
+
+
+--
+-- TOC entry 5419 (class 2620 OID 5316572)
+-- Name: sis_usuario_acc sis_usuario_acc_tr; Type: TRIGGER; Schema: sam; Owner: postgres
+--
+
+CREATE TRIGGER sis_usuario_acc_tr AFTER INSERT ON sam.sis_usuario_acc FOR EACH ROW EXECUTE PROCEDURE sam.uf_tr_sis_usuario_acc();
 
 
 --
