@@ -29674,6 +29674,7 @@ CREATE VIEW public.v_banco_cuenta AS
      LEFT JOIN public.banco_entidad e ON ((("substring"((c.cbu)::text, 1, 3))::smallint = e.bco_ent)))
      LEFT JOIN sam.sis_usuario u ON ((c.usrmod = u.usr_id)));
 
+ALTER TABLE public.v_banco_cuenta OWNER TO postgres;
 	 
 --
 -- TOC entry 859 (class 1255 OID 5282868)
@@ -29945,8 +29946,97 @@ Parámetros:
   nmanz varchar: Número de la Manzana.
 ';
 	 
+--
+-- TOC entry 768 (class 1255 OID 5282738)
+-- Name: uf_code128c(character varying); Type: FUNCTION; Schema: sam; Owner: postgres
+--
 
-ALTER TABLE public.v_banco_cuenta OWNER TO postgres;
+CREATE FUNCTION sam.uf_code128c(tcstring character varying) RETURNS character varying
+    LANGUAGE plpgsql
+    AS $$
+declare
+	lcStart text;
+    lcStop text;
+    lcRet text;
+    lcCheck text;
+    lcCar text;
+    lnLong smallint;
+    lnI smallint;
+    lnCheckSum smallint;
+    lnAsc smallint;
+    numero integer;
+begin
+  --------------------------------------------------------
+  -- Convierte un string para ser impreso con
+  -- fuente True Type "PF Barcode 128"
+  -- Solo caracteres numéricos
+  -- USO: sam.uf_code128c('1234567890')
+  -- RETORNA: Caracter
+  --------------------------------------------------------
+  lcStart := '‰'; --CHR(105 + 32);
+  lcStop := 'Š'; --CHR(106 + 32);
+  lnCheckSum := 105; -- ASCII(lcStart) - 32;
+  lcRet := TRIM(tcString);
+  lnLong := LENGTH(lcRet);
+
+  If (lnLong > 0) Then 
+    
+	--- La longitud debe ser par
+	IF (lnLong % 2) <> 0 Then
+        lcRet := '0' || lcRet;
+        lnLong := LENGTH(lcRet);
+	End If;
+
+    --- Convierto los pares a caracteres
+    lcCar := '';
+    lnI := 1;
+    WHILE lnI<lnLong Loop
+    	lcCar := lcCar || chr_ansi(Cast(SUBSTR(lcRet,lnI,2) as smallint) + 32);
+        numero := Cast(SUBSTR(lcRet,lnI,2) as smallint) + 32;
+        --raise notice 'numero: %',numero;
+        lnI := lnI + 2;
+    End Loop;
+
+	--raise notice 'lcCar: %',lcCar;
+    
+    lcRet := lcCar;
+
+    lnLong := LENGTH(lcRet);
+    FOR lnI IN 1..lnLong Loop
+        lnAsc := ascii_ansi(SUBSTR(lcRet,lnI,1)) - 32;
+        --raise notice 'lnAsc: %',lnAsc;
+        lnCheckSum := lnCheckSum + (lnAsc * lnI);
+    End Loop;
+
+	--raise notice 'lnCheckSum: %',lnCheckSum;
+    
+    lcCheck := chr_ansi((lnCheckSum % 103) + 32);
+    lcRet := lcStart || lcRet || lcCheck || lcStop;
+    --lcRet := lcRet || lcCheck ;
+
+    --- Esto es para cambiar los espacios y caracteres invalidos
+    lcRet := replace(lcRet,CHR(32),'è');	--  32 x 232
+    lcRet := replace(lcRet,CHR(127),'À');	-- 127 x 192
+    lcRet := replace(lcRet,'€','Á');		-- 128 x 193
+
+  End If;
+  
+  Return lcRet;
+
+end
+$$;
+
+
+ALTER FUNCTION sam.uf_code128c(tcstring character varying) OWNER TO postgres;
+
+--
+-- TOC entry 5660 (class 0 OID 0)
+-- Dependencies: 768
+-- Name: FUNCTION uf_code128c(tcstring character varying); Type: COMMENT; Schema: sam; Owner: postgres
+--
+
+COMMENT ON FUNCTION sam.uf_code128c(tcstring character varying) IS 'Devuelve la codificación Bar128c';
+
 
 --
 -- TOC entry 521 (class 1259 OID 5285742)
@@ -50666,189 +50756,6 @@ $$;
 
 
 ALTER FUNCTION sam.uf_cem_trasctacte(_origen character varying, _destino character varying, _desde integer, _hasta integer, _usr integer) OWNER TO postgres;
-
---
--- TOC entry 768 (class 1255 OID 5282738)
--- Name: uf_code128c(character varying); Type: FUNCTION; Schema: sam; Owner: postgres
---
-
-CREATE FUNCTION sam.uf_code128c(tcstring character varying) RETURNS character varying
-    LANGUAGE plpgsql
-    AS $$
-declare
-	lcStart text;
-    lcStop text;
-    lcRet text;
-    lcCheck text;
-    lcCar text;
-    lnLong smallint;
-    lnI smallint;
-    lnCheckSum smallint;
-    lnAsc smallint;
-    numero integer;
-begin
-  --------------------------------------------------------
-  -- Convierte un string para ser impreso con
-  -- fuente True Type "PF Barcode 128"
-  -- Solo caracteres numéricos
-  -- USO: sam.uf_code128c('1234567890')
-  -- RETORNA: Caracter
-  --------------------------------------------------------
-  lcStart := '‰'; --CHR(105 + 32);
-  lcStop := 'Š'; --CHR(106 + 32);
-  lnCheckSum := 105; -- ASCII(lcStart) - 32;
-  lcRet := TRIM(tcString);
-  lnLong := LENGTH(lcRet);
-
-  If (lnLong > 0) Then 
-    
-	--- La longitud debe ser par
-	IF (lnLong % 2) <> 0 Then
-        lcRet := '0' || lcRet;
-        lnLong := LENGTH(lcRet);
-	End If;
-
-    --- Convierto los pares a caracteres
-    lcCar := '';
-    lnI := 1;
-    WHILE lnI<lnLong Loop
-    	lcCar := lcCar || chr_ansi(Cast(SUBSTR(lcRet,lnI,2) as smallint) + 32);
-        numero := Cast(SUBSTR(lcRet,lnI,2) as smallint) + 32;
-        --raise notice 'numero: %',numero;
-        lnI := lnI + 2;
-    End Loop;
-
-	--raise notice 'lcCar: %',lcCar;
-    
-    lcRet := lcCar;
-
-    lnLong := LENGTH(lcRet);
-    FOR lnI IN 1..lnLong Loop
-        lnAsc := ascii_ansi(SUBSTR(lcRet,lnI,1)) - 32;
-        --raise notice 'lnAsc: %',lnAsc;
-        lnCheckSum := lnCheckSum + (lnAsc * lnI);
-    End Loop;
-
-	--raise notice 'lnCheckSum: %',lnCheckSum;
-    
-    lcCheck := chr_ansi((lnCheckSum % 103) + 32);
-    lcRet := lcStart || lcRet || lcCheck || lcStop;
-    --lcRet := lcRet || lcCheck ;
-
-    --- Esto es para cambiar los espacios y caracteres invalidos
-    lcRet := replace(lcRet,CHR(32),'è');	--  32 x 232
-    lcRet := replace(lcRet,CHR(127),'À');	-- 127 x 192
-    lcRet := replace(lcRet,'€','Á');		-- 128 x 193
-
-  End If;
-  
-  Return lcRet;
-
-end
-$$;
-
-
-ALTER FUNCTION sam.uf_code128c(tcstring character varying) OWNER TO postgres;
-
---
--- TOC entry 5660 (class 0 OID 0)
--- Dependencies: 768
--- Name: FUNCTION uf_code128c(tcstring character varying); Type: COMMENT; Schema: sam; Owner: postgres
---
-
-COMMENT ON FUNCTION sam.uf_code128c(tcstring character varying) IS 'Devuelve la codificación Bar128c';
-
-
---
--- TOC entry 769 (class 1255 OID 5282739)
--- Name: uf_code128c_ant(character varying); Type: FUNCTION; Schema: sam; Owner: postgres
---
-
-CREATE FUNCTION sam.uf_code128c_ant(_tcstring character varying) RETURNS character varying
-    LANGUAGE plpgsql
-    AS $$
-declare
-	lcStart text;
-    lcStop text;
-    lcRet text;
-    lcCheck text;
-    lcCar text;
-    lnLong smallint;
-    lnI smallint;
-    lnCheckSum smallint;
-    lnAsc smallint;
-    numero integer;
-begin
-  --------------------------------------------------------
-  -- Convierte un string para ser impreso con
-  -- fuente True Type "PF Barcode 128"
-  -- Solo caracteres numéricos
-  -- USO: sam.uf_code128c('1234567890')
-  -- RETORNA: Caracter
-  --------------------------------------------------------
-  lcStart := '?'; --CHR(105 + 32);
-  lcStop := '?'; --CHR(106 + 32);
-  lnCheckSum := 105; -- ASCII(lcStart) - 32;
-  lcRet := TRIM(_tcString);
-  lnLong := LENGTH(lcRet);
-
-  If (lnLong > 0) Then
-
-	--- La longitud debe ser par
-	IF (lnLong % 2) <> 0 Then
-        lcRet := '0' || lcRet;
-        lnLong := LENGTH(lcRet);
-	End If;
-
-    --- Convierto los pares a caracteres
-    lcCar := '';
-    lnI := 1;
-    WHILE lnI<lnLong Loop
-    	lcCar := lcCar || chr_ansi(Cast(SUBSTR(lcRet,lnI,2) as smallint) + 32);
-        numero := Cast(SUBSTR(lcRet,lnI,2) as smallint) + 32;
-        --raise notice 'numero: %',numero;
-        lnI := lnI + 2;
-    End Loop;
-
-	--raise notice 'lcCar: %',lcCar;
-
-    lcRet := lcCar;
-
-    lnLong := LENGTH(lcRet);
-    FOR lnI IN 1..lnLong Loop
-        lnAsc := ascii_ansi(SUBSTR(lcRet,lnI,1)) - 32;
-        --raise notice 'lnAsc: %',lnAsc;
-        lnCheckSum := lnCheckSum + (lnAsc * lnI);
-    End Loop;
-
-	--raise notice 'lnCheckSum: %',lnCheckSum;
-
-    lcCheck := chr_ansi((lnCheckSum % 103) + 32);
-    lcRet := lcStart || lcRet || lcCheck || lcStop;
-    --lcRet := lcRet || lcCheck ;
-
-    --- Esto es para cambiar los espacios y caracteres invalidos
-    lcRet := replace(lcRet,CHR(32),'è');	--  32 x 232
-    lcRet := replace(lcRet,CHR(127),'À');	-- 127 x 192
-    lcRet := replace(lcRet,'?','Á');		-- 128 x 193
-
-  End If;
-
-  Return lcRet;
-
-end
-$$;
-
-
-ALTER FUNCTION sam.uf_code128c_ant(_tcstring character varying) OWNER TO postgres;
-
---
--- TOC entry 5661 (class 0 OID 0)
--- Dependencies: 769
--- Name: FUNCTION uf_code128c_ant(_tcstring character varying); Type: COMMENT; Schema: sam; Owner: postgres
---
-
-COMMENT ON FUNCTION sam.uf_code128c_ant(_tcstring character varying) IS 'Devuelve la codificación Bar128c';
 
 
 --

@@ -3,7 +3,7 @@ language: php
 # optionally set up exclusions and allowed failures in the matrix
 matrix:
   include:
-  - php: 7.0
+  - php: 7.2
     dist: xenial
     env:
       - DB=pgsql
@@ -11,24 +11,18 @@ matrix:
     services:
       - postgresql
       
-  exclude:
-    - php: hhvm
-      env: DB=pgsql  # PDO driver for pgsql
-    - php: 7.0
-    - php: hhvm
-
 # extensiones
 before_install:
 
 addons:
     apt:
         packages:
-        - php7.0-xml
-        - php7.0-mbstring
-        - php7.0-mcrypt
-        - php7.0-gd
-        - php7.0-zip
-        - php7.0-pgsql
+        - php7.2-xml
+        - php7.2-mbstring
+        - php7.2-mcrypt
+        - php7.2-gd
+        - php7.2-zip
+        - php7.2-pgsql
 install:
   - wget https://github.com/isurgob/isurgob/archive/master.zip
   - unzip master.zip
@@ -37,7 +31,7 @@ install:
 before_script:
   - cd db
   - psql -h localhost -U postgres -f "a-pgbackup_sam_logico-2019-05.sql";
-  - psql -h localhost -U postgres -c isurgob -f "b-pgbackup_sam_dataaux-2019-05.sql";
+  - psql -h localhost -U postgres -f "b-pgbackup_sam_dataaux-2019-05.sql";
 
 # omitting "script:" will default to phpunit
 # use the $DB env variable to determine the phpunit.xml to use
