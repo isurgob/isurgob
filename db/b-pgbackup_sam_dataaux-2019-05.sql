@@ -4682,7 +4682,7 @@ COPY sam.sis_proceso_accion (pro_id, accion, fchmod, usrmod) FROM stdin;
 --
 
 COPY sam.sis_usuario (usr_id, nombre, clave, apenom, domi, tdoc, ndoc, oficina, cargo, legajo, matricula, grupo, est, tel, cel, mail, distrib, inspec_inm, inspec_comer, inspec_op, inspec_juz, inspec_recl, abogado, cajero, fchalta, fchbaja, fchmod, usrmod) FROM stdin;
-100	sa	81dc9bdb52d04dc20036dbd8313ed055	Administrador Sistema		3	0	0		0	0	1	A				1	0	0	0	0	0	0	1	2016-07-01 14:08:55.898538	\N	2016-07-01 14:08:55.898538	100
+100	sa	d41d8cd98f00b204e9800998ecf8427e	Administrador Sistema		3	0	0		0	0	1	A				1	0	0	0	0	0	0	1	2019-05-20 14:08:55.898538	\N	2019-05-20 14:08:55.898538	100
 \.
 
 
@@ -5128,23 +5128,12 @@ COPY sam.tabla_aux (cod, nombre, mod_id, titulo, frm, link, autoinc, accesocons,
 46	rodado_torigen	34	Tipo de Origen			0	3285	0	C	S	2015-06-15 13:56:34.582887	\N
 55	rodado_tliq	34	Tipo de Liquidación Rodado			0	3285	0	N	S	2015-06-15 13:56:34.582887	\N
 100	hab_tfacti	75	Tipo de Factibilidad			0	3555	0	N	S	2015-06-15 13:56:34.582887	\N
-101	exen_test	63	Estado del Expediente			0	3428	0	C	S	2015-06-15 13:56:34.582887	\N
-102	exen_torigen	63	Origen del Expediente			0	3428	0	C	S	2015-06-15 13:56:34.582887	\N
-104	exen_tdoc	63	Documentación Requerida			1	3428	3428	N	S	2015-06-15 13:56:34.582887	\N
-105	exen_tsitlab	63	Situación Laboral			1	3428	3428	N	S	2015-06-15 13:56:34.582887	\N
-106	exen_trenov	63	Tipo de Renovación			0	3428	0	C	S	2015-06-15 13:56:34.582887	\N
-113	recl_tverif	70	Verificación de Reclamos			0	3516	0	N	S	2015-06-15 13:56:34.582887	\N
-114	recl_tverif_modo	70	Modos Verificación de Reclamos			1	3516	3518	N	S	2015-06-15 13:56:34.582887	\N
-116	recl_torigen	70	Origen del Reclamo			0	3516	0	N	S	2015-06-15 13:56:34.582887	\N
-117	recl_test	70	Estado del Reclamo			0	3516	3518	C	S	2015-06-15 13:56:34.582887	\N
 121	transporte_empresa	33	Empresas de Transporte	frmTransporteEmpresa		1	3585	3586	N	N	2015-06-15 13:56:34.582887	\N
 122	pub_marca_grupo	35	Grupo de Marcas			1	3622	3623	N	N	2015-06-15 13:56:34.582887	\N
 123	pub_tarjeta	35	Tarjetas			1	3622	3623	N	N	2015-06-15 13:56:34.582887	\N
 124	pub_tipo	35	Tipos de Publicidad			1	3622	3623	C	N	2015-06-15 13:56:34.582887	\N
 125	pub_empresa	35	Empresas	frmPubEmpresa		1	3622	3623	N	N	2015-06-15 13:56:34.582887	\N
 126	pub_marca	35	Marcas	frmPubMarca		1	3622	3623	N	N	2015-06-15 13:56:34.582887	\N
-103	exen_tipo	63	Tipo de Solicitud de Eximisión	frmObjetoExenTipo	auxeditexentipo	1	3428	3428	N	S	2015-06-15 13:56:34.582887	\N
-115	recl_tipo	70	Tipos de Reclamos	frmReclamosTipo	auxeditrecltipo	0	3516	3518	N	S	2015-06-15 13:56:34.582887	\N
 141	sam.cons_tema	80	Consultas Web - Temas			0	3703	3703	N	S	2016-03-28 15:32:22.803519	100
 74	rubro_grupo	54	Grupos de Rubros			0	3030	3031	C	S	2015-06-15 13:56:34.582887	\N
 143	rodado_tform	34	Tipos de Formularios			0	3285	3286	C	S	2017-04-04 13:17:29.107166	100
@@ -11922,23 +11911,6 @@ SELECT pg_catalog.setval('public.seq_domi_barr_id', 1, false);
 
 SELECT pg_catalog.setval('public.seq_emision_margen_cod', 1, false);
 
-
---
--- TOC entry 6073 (class 0 OID 0)
--- Dependencies: 485
--- Name: seq_exen; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.seq_exen', 1, false);
-
-
---
--- TOC entry 6074 (class 0 OID 0)
--- Dependencies: 486
--- Name: seq_exen_tipo; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.seq_exen_tipo', 1, false);
 
 
 --
