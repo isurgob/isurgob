@@ -3,7 +3,7 @@ language: php
 # optionally set up exclusions and allowed failures in the matrix
 matrix:
   include:
-  - php: 7.2
+  - php: 7.0
     dist: xenial
     env:
       - DB=pgsql
@@ -17,12 +17,12 @@ before_install:
 addons:
     apt:
         packages:
-        - php7.2-xml
-        - php7.2-mbstring
-        - php7.2-mcrypt
-        - php7.2-gd
-        - php7.2-zip
-        - php7.2-pgsql
+        - php7.0-xml
+        - php7.0-mbstring
+        - php7.0-mcrypt
+        - php7.0-gd
+        - php7.0-zip
+        - php7.0-pgsql
 install:
   - wget https://github.com/isurgob/isurgob/archive/master.zip
   - unzip master.zip
