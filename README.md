@@ -14,6 +14,12 @@ Esto permite:
 Está integrado por los siguientes SubSistemas:
 - ISURGOB Tributario
 - ISURGOB Seguridad
+
+El Subsistema de Seguridad es el encargado de gestionar los usuarios, perfiles y permisos de acceso a los distintos Subsistemas. Además permite manejar los módulos de cada Subsistema.
+También dispone de algunas auditorías, en especial en lo que se refiere a control de acceso, accesos fallidos, blanqueos de clave, control de accesos múltiples, etc.
+Físicamente de ubica en una carpeta distinta del Subsistema Tributario, aunque comparte algunas librerías comunes de todos los Subsistemas.
+El Subsistema Tributario posee todos los módulos detallados de la Administración Tributaria. De acuerdo a los permisos del usuario definidos en el Subsistema de Seguridad se habilitan las opciones disponibles.
+
  	
 ### Servicios
 ---
@@ -55,7 +61,7 @@ Para instalar las bases de datos es necesario cargar los scripts en las herramie
 
 4. Puesta en Marcha
 Una vez instalado, tipear en su navegador Web http://ip_dns/sam.
-Primeros Pasos en la imagen: 
+Primeros Pasos en la imagen: (https://github.com/isurgob/isurgob/tree/master/docs/ISURGOB-Instala.gif)
 
 5. Configuración Inicial
 En forma previa a la utilización de los módulos del Sistema, es necesario precargar los datos auxiliares y de configuración en función de las normativas propias del organismo.
