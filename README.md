@@ -71,6 +71,7 @@ Primeros Pasos en la imagen: (https://github.com/isurgob/isurgob/tree/master/doc
 En forma previa a la utilización de los módulos del Sistema, es necesario precargar los datos auxiliares y de configuración en función de las normativas propias del organismo.
 Cada municipio tendrá su propia reglamentación en materia de Tributos, Tasas, Contribuciones, Resoluciones y demás.
 Asimismo, las tipologías y categorizaciones respecto de los Objetos Imponibles y otros módulos son propias de cada organismo en particular y es importante su ingreso desde el área de configuraciones, cito en el encabezado de la página.
+Accesos desde la barra superior del Sistema: (https://github.com/isurgob/isurgob/tree/master/docs/sam-config.jpg)
 
 6. Vinculación de ISURGOB Tributario con el GIS
 
