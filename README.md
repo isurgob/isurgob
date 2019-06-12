@@ -34,20 +34,21 @@ Que es lo que hacemos y lo que brindamos
 ### Guía de instalación
 ---
 1. Prerequisitos
--   Sistema Operativo de Servidor: preferentemente Linux Server kernel versión 4.4 o superior, distribución recomendada Debian
+-   Sistema Operativo de Servidor: preferentemente Linux Server kernel versión 4.4 o superior, distribuciones recomendadas Debian/Ubuntu
 -	Base de Datos: PostgreSQL 9.4 o superior
 -	Servidor Web: Apache 2.4 o superior
 -	Lenguaje: PHP 7.0
 -   Librerías PHP adicionales: 
     -   php-mbstring
-	-   php-simplexml
+	-   php-xml
 	-   php-mcrypt
 	-   php-gd
 	-   php-zip
 	-   pdo-pgsql
+-   Ejemplo: $ sudo -E apt-get -yq --no-install-suggests --no-install-recommends install php7.0-xml php7.0-mbstring php7.0-mcrypt php7.0-gd php7.0-zip php7.0-pgsql
 
 2. Instalación de la Base de Datos
-Soporte para PostgreSQL. Contactar con desarrolladores para configuración específica.
+-   Soporte para PostgreSQL.
 
 Para instalar las bases de datos es necesario cargar los scripts en las herramientas específicas de las bases de datos como psql o PgAdmin
 
@@ -56,8 +57,11 @@ Para instalar las bases de datos es necesario cargar los scripts en las herramie
  -  Ejecutar mediante psql. El fichero Readme.txt contiene las instrucciones específicas.
 
 3. Descarga e Instalación del Código
--   Descarga de código desde https://github.com/isurgob/isurgob
--   Descomprimir el código del paso anterior en el directorio de publicación de Apache.
+-   Descarga de código desde el Repositorio de github
+    -   $ wget https://github.com/isurgob/isurgob/archive/master.zip
+-   Descomprimir el código del paso anterior en el directorio de publicación de Apache
+    -   $ cd /var/www/html o similar según la distriución a utilizar.
+	-   $ unzip master.zip.
 
 4. Puesta en Marcha
 Una vez instalado, tipear en su navegador Web http://ip_dns/sam.
