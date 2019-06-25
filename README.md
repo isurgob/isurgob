@@ -2,25 +2,53 @@
 
 ### Sistema Integrado de Gobierno
 ---
-ISURGOB (Sistema Integrado de Administración Municipal), comprende la sistematización de un conjunto de procesos Administrativos, Tributarios y Financieros.
+El ISURGOB (Sistema Integrado de Administración Municipal), comprende la sistematización de un conjunto de procesos Administrativos, Tributarios y Financieros.
+
+El Sistema Integrado de Gobierno esta basado en el concepto de código abierto entendido como un modelo de desarrollo de software basado en la colaboración abierta, enfocada en los beneficios prácticos (acceso al código fuente) para los gobiernos.
+
+ISURGOB reúne la experiencia de software de un equipo de consultores especialista que ha desarrollado sistemas de administración tributaria y financiera para gobiernos en los últimos 25 años en el país y la región, actualizando constantemente la tecnología para obtener una de las herramientas más sólidas e integradas que se pueden encontrar en el mercado.
+
+Nuestro Sistema de Gestión Tributaria profundiza el aprovechamiento integral de las nuevas Tecnologías de la Información y la Comunicación (TICs), consolidando un modelo de gestión tributaria eficiente, ágil, productivo, seguro y transparente en las fases operativo/funcionales de la administración pública, para cumplir con eficacia las tareas cotidianas y fortalecer la relación con los contribuyentes y/o responsables.    
 
 Esto permite:
 - Mejor eficiencia en la obtención y aplicación de los Recursos Públicos.
 
 - La generación de información oportuna y confiable, indispensable para la toma de decisiones, sobre la situación de cada objeto imponible y contribuyente del Municipio y demás relaciones funcionales de la operatoria.
 
+
 ### Subsistemas
 ---
 Está integrado por los siguientes SubSistemas:
+
 - ISURGOB Tributario
+
+El Sistema de Gestión Tributaria es un complejo y avanzado conjunto de sistemas de información, totalmente integrados, diseñados para la gestión y administración, que funciona como una base integradora de gestión.
+
+Se basa en el concepto de Contribuyente Único y Cuenta Corriente Única.
+
+Entre los módulos que se incluyen podemos mencionar: administración de Contribuyentes y Objetos Imponibles, administración de Cuenta Corriente Única, emisión de Tasas periódicas, eventuales, Generación de Declaraciones Juradas de Actividades Comerciales, Manejo de Agentes de Retención y Percepción, generación de Facilidades y Planes de Pago, gestión de Cobranza on-line y off-line, Cumplimiento Fiscal, Ejecución Judicial y Servicios al Ciudadano.
+
+A su vez permite la generación de diferentes reportes y comprobantes para el pago de las diferentes tasas y contribuciones que operan en el Organismo en base a las normativas vigentes.
+
+
 - ISURGOB Seguridad
 
-El Subsistema de Seguridad es el encargado de gestionar los usuarios, perfiles y permisos de acceso a los distintos Subsistemas. Además permite manejar los módulos de cada Subsistema.
-También dispone de algunas auditorías, en especial en lo que se refiere a control de acceso, accesos fallidos, blanqueos de clave, control de accesos múltiples, etc.
-Físicamente de ubica en una carpeta distinta del Subsistema Tributario, aunque comparte algunas librerías comunes de todos los Subsistemas.
+El Subsistema de Seguridad es el encargado de gestionar los usuarios, perfiles y permisos de acceso a los distintos Subsistemas. Además permite manejar los módulos de cada Subsistema. También dispone de algunas auditorías, en especial en lo que se refiere a control de acceso, accesos fallidos, blanqueos de clave, control de accesos múltiples, etc. 
+Físicamente de ubica en una carpeta distinta del Subsistema Tributario, aunque comparte algunas librerías comunes de todos los Subsistemas. 
 El Subsistema Tributario posee todos los módulos detallados de la Administración Tributaria. De acuerdo a los permisos del usuario definidos en el Subsistema de Seguridad se habilitan las opciones disponibles.
 
- 	
+
+### Características del Sistema
+---
+La arquitectura de la solución posee las siguientes características:
+- Arquitectura Web Enabled
+- Patrón de diseño MVC
+- Interoperabilidad
+- Escalabilidad, Confiabilidad y Fiabilidad
+- Alto grado de Parametrización
+- Integracón con otros sistemas mediante el uso de WebServices
+
+
 ### Servicios
 ---
 Que es lo que hacemos y lo que brindamos
@@ -30,6 +58,7 @@ Que es lo que hacemos y lo que brindamos
 - Sistema intuitivo y dinámico
 - Ajustes totalmente parametrizables
 - Entrenamiento y capacitación.
+
 
 ### Guía de instalación
 ---
@@ -84,7 +113,8 @@ Accesos desde la barra superior del Sistema: (https://github.com/isurgob/isurgob
     b)	Actualización de Valuaciones: Permitirá actualizar la información asociada a las valuaciones de inmuebles y mejoras, incluyendo todos los elementos necesarios, tales como: superficie, zona, coeficiente, valor básico, categoría, etc. Este método será invocado por el Sistema de Catastro, ante un proceso de revalúo, ya sea parcial o total.
     c)	Semáforo de deuda: Consistirá en un semáforo que indicará si se pueden realizar gestiones sobre un inmueble en el Sistema de Catastro, de acuerdo al estado de deuda del mismo, teniendo en cuenta los parámetros para determinar la misma. El Sistema Comarcal incluirá las llamadas a este “semáforo” cuando se inicien trámites que cambien el estado del inmueble (Planos de obra, declaraciones de mejoras, etc.)
 -   Funciones y Aspectos Técnicos: (https://github.com/isurgob/isurgob/tree/master/docs/InterfacesGIS.pdf)
-   
+
+
 ### Arquitectura
 ---
 El modelo se enmarca en por lo menos dos principios de la gestión pública de la calidad: principio de continuidad en la prestación de servicios, que propone que los servicios públicos se prestarán de manera regular e ininterrumpida, previendo las medidas necesarias para evitar o minimizar los perjuicios que pudieran ocasionarle al ciudadano en las posibles suspensiones del servicio. Y el principio de evaluación permanente y mejora continua que propone que una gestión pública de calidad es aquella que contempla la evaluación permanente, interna y externa, orientada a la identificación de oportunidades para la mejora continua de los procesos, servicios y prestaciones públicas centrados en el servicio al ciudadano y para resultados, proporcionando insumos para la adecuada rendición de cuentas.
@@ -95,6 +125,7 @@ El modelo se enmarca en por lo menos dos principios de la gestión pública de la 
 - Interoperabilidad
 - Escalabilidad y extensibilidad
 - Alto grado de Parametrización
+
 
 ### Tecnologías
 ---
@@ -112,12 +143,14 @@ Las PC clientes, deberán disponer de un navegador Web de última generación.
 ---
 - Gabriel Martinez (gabrielmart@gmail.com)
 - Sandra Martinez (sandracmart@gmail.com)
-- ISUR.
+- ISUR
+
 
 ### Información adicional
 ---
 Se deberá contar con un Servidor de Base de Datos y Aplicaciones, preferentemente en Linux.
 Se podrá migrar la información existente actualmente.
+
 
 ### Licencia 
 ---
