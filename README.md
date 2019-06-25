@@ -29,14 +29,14 @@ Se basa en el concepto de Contribuyente Único y Cuenta Corriente Única.
 Entre los módulos que se incluyen podemos mencionar: administración de Contribuyentes y Objetos Imponibles, administración de Cuenta Corriente Única, emisión de Tasas periódicas, eventuales, Generación de Declaraciones Juradas de Actividades Comerciales, Manejo de Agentes de Retención y Percepción, generación de Facilidades y Planes de Pago, gestión de Cobranza on-line y off-line, Cumplimiento Fiscal, Ejecución Judicial y Servicios al Ciudadano.
 
 A su vez permite la generación de diferentes reportes y comprobantes para el pago de las diferentes tasas y contribuciones que operan en el Organismo en base a las normativas vigentes.
-
+(https://github.com/isurgob/isurgob/tree/master/docs/samtrib.gif)
 
 - ISURGOB Seguridad
 
 El Subsistema de Seguridad es el encargado de gestionar los usuarios, perfiles y permisos de acceso a los distintos Subsistemas. Además permite manejar los módulos de cada Subsistema. También dispone de algunas auditorías, en especial en lo que se refiere a control de acceso, accesos fallidos, blanqueos de clave, control de accesos múltiples, etc. 
 Físicamente de ubica en una carpeta distinta del Subsistema Tributario, aunque comparte algunas librerías comunes de todos los Subsistemas. 
 El Subsistema Tributario posee todos los módulos detallados de la Administración Tributaria. De acuerdo a los permisos del usuario definidos en el Subsistema de Seguridad se habilitan las opciones disponibles.
-
+(https://github.com/isurgob/isurgob/tree/master/docs/samseg.gif)
 
 ### Características del Sistema
 ---
