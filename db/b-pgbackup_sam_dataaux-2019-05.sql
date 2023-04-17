@@ -12260,3 +12260,15 @@ SELECT pg_catalog.setval('temp.seq_ddjj_rubros', 1, true);
 -- PostgreSQL database dump complete
 --
 
+
+-- Otros Ajustes DB
+-- Aj-Sql-DB-MuniDatos
+
+Insert into domi_pais Values (1, 'Mexico', current_timestamp, 100);
+
+Insert into domi_provincia Values (1, 'Indefinido', 1, current_timestamp, 100);
+
+Insert Into domi_localidad Values (1, 'Prueba', 1, 0, current_timestamp, 100);
+
+Update sam.muni_datos Set loc_id = 1, nombre = 'Municipalidad Prueba';
+
